@@ -1,0 +1,2234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>临床研发中心 · 个人 AI 应用场景分享</title>
+<!-- 字体：Manrope（拉丁/数字） + Noto Sans SC（中文）。
+     本地 fonts/ 子集为离线兜底；在线时 Google Fonts CDN 优先。 -->
+<link href="fonts/fonts.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+/* ===========================================
+   设计变量（主题）：改这里即可整体换肤
+   =========================================== */
+:root {
+    /* 色彩 —— 白底 + 蓝色主题 */
+    --blue-deep: #0b3d91;        /* 深企蓝：标题强调 */
+    --blue: #1b4fd8;             /* 主蓝：强调、编号 */
+    --blue-bright: #2f6bff;      /* 亮蓝：点缀 */
+    --blue-tint: #eef3fd;        /* 浅蓝底：卡片 */
+    --blue-tint-2: #e0eafc;      /* 稍深浅蓝底 */
+    --ink: #101828;              /* 正文深色 */
+    --muted: #5b6b82;            /* 次要文字 */
+    --faint: #8a98ad;            /* 更弱文字 */
+    --hairline: #d7e0ee;         /* 细分割线 */
+    --green: #0f9d6c;            /* 前 30% 绿 */
+    --red: #d94343;              /* 后 30% 红 */
+    --gold: #c9a227;             /* 金 */
+    --teal: #0e9aa8;             /* 青 */
+    --rose: #d4568c;             /* 玫 */
+    --stage-bg: #e9eef6;         /* 舞台外衬底 */
+    --slide-bg: #ffffff;         /* 幻灯片白底 */
+
+    /* 字体 */
+    --font-latin: 'Manrope', sans-serif;
+    --font-cn: 'Noto Sans SC', sans-serif;
+
+    /* 动效 */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur: 0.55s;
+}
+
+/* ===========================================
+   FIXED 16:9 STAGE: MANDATORY BASE STYLES
+   （viewport-base.css 全文，禁止删改）
+   =========================================== */
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+.deck-viewport {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+.deck-stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    transform-origin: 0 0;
+    background: var(--slide-bg, #fff);
+}
+.slide {
+    position: absolute;
+    inset: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    display: block;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    background: var(--slide-bg, #fff);
+}
+.slide.active,
+.slide.visible {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 1;
+}
+img,
+video,
+canvas,
+svg {
+    max-width: 100%;
+    max-height: 100%;
+}
+.deck-controls {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    z-index: 1000;
+}
+@media print {
+    html,
+    body {
+        width: 1920px;
+        height: auto;
+        overflow: visible;
+        background: #fff;
+    }
+    .deck-viewport {
+        position: static;
+        overflow: visible;
+        background: #fff;
+    }
+    .deck-stage {
+        position: static;
+        width: auto;
+        height: auto;
+        transform: none !important;
+        background: none;
+    }
+    .slide {
+        position: relative;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        width: 1920px;
+        height: 1080px;
+        break-after: page;
+        page-break-after: always;
+    }
+    .slide:last-child {
+        break-after: auto;
+        page-break-after: auto;
+    }
+    .deck-controls {
+        display: none !important;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.2s !important;
+    }
+}
+
+/* ===========================================
+   基础排版
+   =========================================== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+.slide {
+    font-family: var(--font-cn);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+}
+strong { font-weight: 700; color: var(--blue-deep); }
+em { font-style: normal; color: var(--blue); font-weight: 700; }
+
+/* ===========================================
+   通用装饰：工程网格背景（极淡）
+   =========================================== */
+.grid-bg {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+        linear-gradient(to right, rgba(27,79,216,0.040) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(27,79,216,0.040) 1px, transparent 1px);
+    background-size: 96px 96px;
+}
+.grid-bg::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(1200px 700px at 82% 22%, rgba(47,107,255,0.08), transparent 60%);
+}
+
+/* ===========================================
+   通用骨架：顶部 chrome / 标题区 / 底部信息条
+   =========================================== */
+.slide-chrome {
+    position: absolute; top: 0; left: 0; right: 0; height: 84px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 88px; border-bottom: 1px solid var(--hairline);
+    font-family: var(--font-latin); font-size: 15px; letter-spacing: 0.16em;
+    color: var(--muted); font-weight: 600; z-index: 5; background: rgba(255,255,255,0.86);
+}
+.brand { display: flex; align-items: center; gap: 13px; color: var(--blue-deep); font-family: var(--font-cn); letter-spacing: 0.06em; }
+.brand-mark {
+    width: 30px; height: 30px; background: var(--blue); color: #fff;
+    display: grid; place-items: center; font-size: 14px; font-weight: 800;
+    border-radius: 6px; font-family: var(--font-latin); letter-spacing: 0;
+}
+.chrome-right { display: flex; align-items: center; gap: 14px; }
+.chrome-right .crumb { color: var(--faint); }
+.chrome-right .crumb b { color: var(--blue); font-weight: 700; }
+
+.slide-foot {
+    position: absolute; left: 88px; right: 88px; bottom: 0; height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-top: 1px solid var(--hairline);
+    font-size: 15px; color: var(--faint); z-index: 5;
+    font-family: var(--font-latin); letter-spacing: 0.10em;
+}
+.slide-foot .foot-cn { font-family: var(--font-cn); letter-spacing: 0.04em; }
+.slide-foot .page::before { content: counter(slideNo, decimal-leading-zero) " / 35"; font-weight: 700; color: var(--muted); }
+.deck-stage { counter-reset: slideNo; }
+.deck-stage .slide { counter-increment: slideNo; }
+
+/* 标题区 */
+.slide-head { position: absolute; left: 88px; right: 88px; top: 118px; z-index: 4; }
+.eyebrow {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: var(--font-latin); font-size: 16px; font-weight: 700;
+    letter-spacing: 0.28em; color: var(--blue); text-transform: uppercase;
+    margin-bottom: 18px;
+}
+.eyebrow::before { content: ''; width: 44px; height: 3px; background: var(--blue); }
+.slide-head h2 { font-size: 46px; font-weight: 900; line-height: 1.25; letter-spacing: 0.01em; }
+.slide-head h2 .accent { color: var(--blue); }
+.slide-head .head-note { margin-top: 12px; font-size: 20px; color: var(--muted); line-height: 1.6; }
+
+/* 内容区：默认占据标题区与底部之间的空间 */
+.slide-body { position: absolute; left: 88px; right: 88px; top: 300px; bottom: 92px; z-index: 3; }
+.slide-body.tight-head { top: 262px; }
+
+/* ===========================================
+   组件：卡片 / 列表 / 数字 / 引用 / 表格 / 流程
+   =========================================== */
+/* 卡片网格 */
+.cards { display: grid; gap: 24px; height: 100%; }
+.cards.c2 { grid-template-columns: 1fr 1fr; }
+.cards.c3 { grid-template-columns: 1fr 1fr 1fr; }
+.cards.c4 { grid-template-columns: repeat(4, 1fr); }
+.card {
+    background: var(--blue-tint); border: 1px solid var(--hairline);
+    border-radius: 14px; padding: 30px 32px; position: relative;
+    display: flex; flex-direction: column;
+}
+.card.plain { background: #fff; }
+.card h4 { font-size: 24px; font-weight: 700; color: var(--blue-deep); margin-bottom: 14px; line-height: 1.4; }
+.card p, .card li { font-size: 19px; line-height: 1.72; color: var(--ink); }
+.card .sub { color: var(--muted); font-size: 18px; }
+.card .no {
+    font-family: var(--font-latin); font-size: 15px; font-weight: 800; letter-spacing: 0.12em;
+    color: var(--blue); margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+}
+.card .no::after { content: ''; flex: 1; height: 1px; background: var(--hairline); }
+
+/* 要点列表（蓝色方块符号） */
+.blist { list-style: none; }
+.blist li { position: relative; padding-left: 30px; margin-bottom: 16px; font-size: 20px; line-height: 1.7; }
+.blist li::before { content: ''; position: absolute; left: 2px; top: 12px; width: 10px; height: 10px; background: var(--blue); border-radius: 2px; }
+.blist li:last-child { margin-bottom: 0; }
+.blist.dense li { font-size: 19px; margin-bottom: 12px; }
+
+/* 大数字统计行 */
+.stat-row { display: grid; gap: 24px; }
+.stat {
+    background: #fff; border: 1px solid var(--hairline); border-radius: 14px;
+    padding: 26px 30px; display: flex; flex-direction: column; gap: 8px;
+}
+.stat .num { font-family: var(--font-latin); font-size: 54px; font-weight: 800; color: var(--blue); line-height: 1.05; }
+.stat .num small { font-size: 26px; font-weight: 700; }
+.stat .lbl { font-size: 18px; color: var(--muted); line-height: 1.55; }
+
+/* 引用块（左侧蓝条） */
+.quote {
+    border-left: 5px solid var(--blue); background: var(--blue-tint);
+    border-radius: 0 14px 14px 0; padding: 26px 34px;
+    font-size: 21px; line-height: 1.75; color: var(--ink);
+}
+.quote .who { margin-top: 10px; font-size: 16px; color: var(--muted); }
+
+/* 表格 */
+.dtable { width: 100%; border-collapse: collapse; font-size: 19px; }
+.dtable th {
+    text-align: left; background: var(--blue); color: #fff; font-weight: 700;
+    padding: 14px 20px; font-size: 18px;
+}
+.dtable th:first-child { border-radius: 10px 0 0 0; }
+.dtable th:last-child { border-radius: 0 10px 0 0; }
+.dtable td { padding: 13px 20px; border-bottom: 1px solid var(--hairline); line-height: 1.55; }
+.dtable tr:nth-child(even) td { background: #f7fafe; }
+.dtable .pct { font-family: var(--font-latin); font-weight: 800; color: var(--blue); }
+
+/* 横向流程条 */
+.flow { display: flex; align-items: stretch; gap: 0; }
+.flow .step {
+    flex: 1; background: #fff; border: 1px solid var(--hairline); border-radius: 14px;
+    padding: 24px 24px; position: relative;
+}
+.flow .step + .step { margin-left: 44px; }
+.flow .step + .step::before {
+    content: ''; position: absolute; left: -33px; top: 50%; margin-top: -11px;
+    width: 22px; height: 22px;
+    background: var(--blue);
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+.flow .step .s-no {
+    width: 40px; height: 40px; border-radius: 50%; background: var(--blue); color: #fff;
+    font-family: var(--font-latin); font-weight: 800; font-size: 19px;
+    display: grid; place-items: center; margin-bottom: 14px;
+}
+.flow .step h5 { font-size: 21px; font-weight: 700; color: var(--blue-deep); margin-bottom: 10px; line-height: 1.45; }
+.flow .step p { font-size: 17px; line-height: 1.65; color: var(--muted); }
+
+/* 图片框 */
+.img-frame {
+    background: #fff; border: 1px solid var(--hairline); border-radius: 12px;
+    padding: 10px; box-shadow: 0 10px 30px rgba(11,61,145,0.08);
+    display: flex; flex-direction: column;
+}
+.img-frame img { width: 100%; height: 100%; object-fit: contain; border-radius: 6px; flex: 1; min-height: 0; }
+.img-frame .cap {
+    padding: 10px 6px 2px; font-size: 15px; color: var(--muted);
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.img-frame .cap::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--blue-bright); flex-shrink: 0; }
+
+/* 标签小丸 */
+.pill {
+    display: inline-block; background: var(--blue-tint); border: 1px solid var(--hairline);
+    color: var(--blue-deep); border-radius: 100px; padding: 6px 18px;
+    font-size: 16px; font-weight: 500; margin: 0 8px 8px 0;
+}
+.pill.solid { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* 演示入口按钮 */
+.demo-btn {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: var(--blue); color: #fff; border-radius: 12px;
+    padding: 16px 30px; font-size: 19px; font-weight: 700; text-decoration: none;
+    box-shadow: 0 8px 22px rgba(27,79,216,0.28);
+}
+.demo-btn:hover { background: var(--blue-deep); }
+.demo-btn .arrow { font-family: var(--font-latin); font-weight: 800; }
+.demo-note { font-size: 15px; color: var(--faint); margin-top: 10px; }
+
+/* 两栏布局 */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; height: 100%; }
+.two-col.w58 { grid-template-columns: 1.25fr 1fr; }
+.two-col.w46 { grid-template-columns: 1fr 1.3fr; }
+/* 防止 grid 子项因内容固有尺寸撑破 1920×1080 舞台 */
+.two-col > *, .cards > *, .stat-row > * { min-width: 0; min-height: 0; }
+
+/* 色点图例 */
+.legend-dot { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 10px; vertical-align: -1px; }
+
+/* ===========================================
+   入场动画（企业风：快速、克制）
+   =========================================== */
+.reveal {
+    opacity: 0; transform: translateY(26px);
+    transition: opacity var(--dur) var(--ease-out-expo), transform var(--dur) var(--ease-out-expo);
+}
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.slide.visible .d1 { transition-delay: 0.06s; } .slide.visible .d2 { transition-delay: 0.16s; }
+.slide.visible .d3 { transition-delay: 0.26s; } .slide.visible .d4 { transition-delay: 0.36s; }
+.slide.visible .d5 { transition-delay: 0.46s; } .slide.visible .d6 { transition-delay: 0.56s; }
+.slide.visible .d7 { transition-delay: 0.66s; } .slide.visible .d8 { transition-delay: 0.76s; }
+
+/* ===========================================
+   封面 / 章节页 / 结束页 专用
+   =========================================== */
+/* 封面大描边数字 */
+.side-index {
+    position: absolute; right: 88px; top: 46%; transform: translateY(-50%);
+    font-family: var(--font-latin); font-weight: 800; font-size: 300px; line-height: 1;
+    color: transparent; -webkit-text-stroke: 2px rgba(27,79,216,0.15);
+    user-select: none; z-index: 1;
+}
+/* 章节页 */
+.slide-section .sec-no {
+    position: absolute; right: 60px; top: 50%; transform: translateY(-50%);
+    font-family: var(--font-latin); font-weight: 800; font-size: 460px; line-height: 1;
+    color: transparent; -webkit-text-stroke: 2.5px rgba(27,79,216,0.18);
+    user-select: none; z-index: 1;
+}
+.sec-block { position: absolute; left: 88px; top: 300px; width: 1180px; z-index: 3; }
+.sec-tag {
+    display: inline-flex; align-items: center; gap: 14px; margin-bottom: 34px;
+    font-family: var(--font-latin); font-size: 17px; font-weight: 700; letter-spacing: 0.26em; color: var(--blue);
+}
+.sec-tag::before { content: ''; width: 56px; height: 3px; background: var(--blue); }
+.sec-block h2 { font-size: 76px; font-weight: 900; line-height: 1.25; }
+.sec-block h2 .accent { color: var(--blue); }
+.sec-block .sec-sub { margin-top: 26px; font-size: 24px; color: var(--muted); line-height: 1.65; max-width: 1000px; }
+.sec-meta { position: absolute; left: 88px; right: 88px; bottom: 92px; display: flex; gap: 40px; align-items: center; border-top: 1px solid var(--hairline); padding-top: 26px; z-index: 3; }
+.sec-meta .m-item { display: flex; align-items: center; gap: 10px; font-size: 18px; color: var(--muted); }
+.sec-meta .m-item b { color: var(--blue-deep); font-weight: 700; }
+.sec-meta .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue-bright); }
+
+/* 进度小刻度（章节页底部 5 段） */
+.sec-progress { display: flex; gap: 10px; margin-left: auto; }
+.sec-progress i { width: 52px; height: 6px; border-radius: 3px; background: var(--blue-tint-2); }
+.sec-progress i.on { background: var(--blue); }
+
+/* 工具封面页（场景内子章节）：与场景封面同族但区分——
+   场景封面 = 右侧描边巨数；工具封面 = 左侧实心蓝块编号 + 右侧标题与导览 */
+.slide-tool .tool-no {
+    position: absolute; left: 88px; top: 218px; bottom: 190px; width: 470px;
+    border-radius: 26px; z-index: 2; overflow: hidden;
+    background: linear-gradient(155deg, var(--blue) 0%, var(--blue-deep) 78%);
+    box-shadow: 0 34px 90px rgba(11,61,145,0.28);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+}
+.slide-tool .tool-no::after {
+    content: ''; position: absolute; right: -80px; bottom: -80px; width: 280px; height: 280px;
+    border: 2px solid rgba(255,255,255,0.16); border-radius: 50%;
+}
+.slide-tool .tool-no .t-label {
+    font-family: var(--font-latin); font-size: 19px; font-weight: 700;
+    letter-spacing: 0.34em; color: rgba(255,255,255,0.72);
+}
+.slide-tool .tool-no .t-num {
+    font-family: var(--font-latin); font-size: 148px; font-weight: 800;
+    line-height: 1.05; color: #fff; margin-top: 14px;
+}
+.slide-tool .tool-no .t-bar { width: 66px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.55); margin-top: 30px; }
+.tool-block { position: absolute; left: 640px; right: 88px; top: 218px; z-index: 3; }
+.tool-block .sec-tag { margin-bottom: 26px; }
+.tool-block h2 { font-size: 62px; font-weight: 900; line-height: 1.3; }
+.tool-block h2 .accent { color: var(--blue); }
+.tool-block .tool-sub { margin-top: 22px; font-size: 22px; color: var(--muted); line-height: 1.7; max-width: 1060px; }
+.tool-agenda { margin-top: 40px; border-top: 1px solid var(--hairline); padding-top: 26px; }
+.tool-agenda .ag-title {
+    font-family: var(--font-latin); font-size: 15px; font-weight: 700;
+    letter-spacing: 0.22em; color: var(--faint); margin-bottom: 16px;
+}
+.tool-agenda .ag-items { display: flex; flex-wrap: wrap; gap: 12px; }
+.tool-agenda .ag {
+    display: inline-flex; align-items: center; gap: 9px;
+    background: #fff; border: 1px solid var(--hairline); border-radius: 999px;
+    padding: 10px 20px; font-size: 18px; color: var(--ink);
+}
+.tool-agenda .ag b { font-family: var(--font-latin); color: var(--blue); font-weight: 800; font-size: 16px; }
+
+/* ===========================================
+   语义图标系统（线性 SVG，浅蓝底方块）
+   =========================================== */
+.icon-chip {
+    width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0;
+    background: var(--blue-tint); border: 1px solid var(--hairline);
+    display: grid; place-items: center; color: var(--blue);
+}
+.icon-chip svg { width: 26px; height: 26px; }
+/* 深色/彩色卡片上的反白图标块 */
+.icon-chip.inv { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.25); color: #fff; }
+
+/* 纵向紧凑步骤条（配 icon）：撑满列高，与右侧图片卡底边对齐 */
+.vsteps { display: flex; flex-direction: column; gap: 14px; height: 100%; }
+.vstep {
+    flex: 1; min-height: 0;
+    display: flex; gap: 18px; align-items: center;
+    background: #fff; border: 1px solid var(--hairline); border-radius: 14px; padding: 16px 22px;
+}
+.vstep .vstep-t { flex: 1; min-width: 0; }
+.vstep h5 { font-size: 20px; font-weight: 700; color: var(--blue-deep); margin-bottom: 4px; }
+.vstep h5 .n { font-family: var(--font-latin); color: var(--blue); font-weight: 800; margin-right: 10px; }
+.vstep p { font-size: 16.5px; line-height: 1.6; color: var(--muted); }
+
+/* 计划关键词条（配图下方的 icon 条） */
+.plan-chip {
+    display: flex; align-items: center; gap: 16px;
+    background: #fff; border: 1px solid var(--hairline); border-radius: 14px; padding: 16px 22px;
+}
+.plan-chip .pc-t { min-width: 0; }
+.plan-chip .pc-t b { display: block; font-size: 19px; color: var(--blue-deep); margin-bottom: 3px; }
+.plan-chip .pc-t span { font-size: 15.5px; color: var(--muted); line-height: 1.5; }
+
+/* ===========================================
+   场景四 · 图标列表 / 中心枢纽图 / 纵向流水线 / 功能点小卡
+   =========================================== */
+/* 图标要点列表（S28 左栏、S31 右栏复用） */
+.blist.iconed li { display: flex; align-items: flex-start; gap: 16px; padding-left: 0; margin-bottom: 24px; }
+.blist.iconed li::before { display: none; }
+.blist.iconed .li-t { flex: 1; min-width: 0; }
+.blist.iconed .li-t .li-h { display: block; font-size: 22px; font-weight: 700; color: var(--blue-deep); margin-bottom: 6px; }
+.blist.iconed .li-t .li-p { display: block; font-size: 20px; color: var(--muted); line-height: 1.65; }
+.blist.iconed .icon-chip { width: 44px; height: 44px; }
+.blist.iconed .icon-chip svg { width: 23px; height: 23px; }
+.card .blist.iconed .icon-chip { background: #fff; }
+
+/* S28 深色卡 · 四问清单（半透明图标块） */
+.qlist { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
+.qlist .q { display: flex; align-items: center; gap: 14px; color: #fff; font-size: 20.5px; line-height: 1.55; }
+.qlist .q-ic { width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0; display: grid; place-items: center; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.18); color: #9dbcff; }
+.qlist .q-ic svg { width: 22px; height: 22px; }
+.qlist .q strong { color: #8fb3ff; }
+
+/* S29 五个"要" · 中心枢纽（左 2 卡 + 中央圆盘 + 右 3 卡 + 底部结论条） */
+.hub { display: grid; grid-template-columns: 1fr 300px 1fr; gap: 44px; min-height: 0; }
+.hub-col { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+.hub-card { flex: 1; min-height: 0; position: relative; padding: 22px 26px; justify-content: center; }
+.hub-col-l .hub-card::after { content: ''; position: absolute; right: -45px; top: 50%; width: 45px; height: 2px; background: linear-gradient(90deg, rgba(27,79,216,0.45), var(--hairline)); }
+.hub-col-r .hub-card::before { content: ''; position: absolute; left: -45px; top: 50%; width: 45px; height: 2px; background: linear-gradient(270deg, rgba(27,79,216,0.45), var(--hairline)); }
+.hc-head { display: flex; align-items: center; gap: 13px; margin-bottom: 10px; }
+.hc-head .icon-chip { width: 44px; height: 44px; }
+.hc-head .icon-chip svg { width: 23px; height: 23px; }
+.hub-card .hc-head h4 { font-size: 25px; margin-bottom: 0; }
+.hub-card p { font-size: 20px; line-height: 1.65; }
+.hub-core { display: flex; align-items: center; justify-content: center; min-height: 0; }
+.hub-disc-wrap { position: relative; width: 292px; height: 292px; display: grid; place-items: center; }
+.hub-ring { position: absolute; inset: 0; border-radius: 50%; border: 2.5px dashed rgba(27,79,216,0.4); animation: hubSpin 36s linear infinite; }
+@keyframes hubSpin { to { transform: rotate(360deg); } }
+.hub-disc { width: 236px; height: 236px; border-radius: 50%; background: linear-gradient(155deg, var(--blue) 0%, var(--blue-deep) 80%); box-shadow: 0 24px 60px rgba(11,61,145,0.25); display: flex; flex-direction: column; justify-content: center; align-items: center; color: #fff; text-align: center; }
+.hub-disc .hub-num { font-family: var(--font-latin); font-size: 92px; font-weight: 800; line-height: 1; }
+.hub-disc .hub-cap { font-size: 22px; font-weight: 700; margin-top: 8px; }
+.hub-disc .hub-sub { font-size: 13px; color: rgba(255,255,255,0.68); margin-top: 8px; font-family: var(--font-latin); letter-spacing: 0.22em; }
+.hub-concl { display: flex; align-items: center; gap: 18px; background: linear-gradient(155deg, var(--blue), var(--blue-deep)); border-radius: 14px; padding: 18px 30px; color: #fff; font-size: 21px; box-shadow: 0 18px 44px rgba(11,61,145,0.20); }
+.hub-concl strong { color: #cfe0ff; }
+.hub-concl .con-ic { width: 44px; height: 44px; border-radius: 11px; flex-shrink: 0; display: grid; place-items: center; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.22); color: #fff; }
+.hub-concl .con-ic svg { width: 23px; height: 23px; }
+
+/* S30 纵向流水线（圆形 icon 节点 + 蓝色管道，末节点实心强调） */
+.pipe { display: flex; flex-direction: column; gap: 10px; height: 100%; position: relative; }
+.pipe::before { content: ''; position: absolute; left: 30.5px; top: 34px; bottom: 34px; width: 3px; border-radius: 2px; background: linear-gradient(180deg, var(--blue), var(--blue-bright)); }
+.pipe-step { flex: 1; min-height: 0; display: flex; align-items: center; gap: 20px; position: relative; }
+.pipe-node { width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; background: #fff; border: 2.5px solid var(--blue); display: grid; place-items: center; color: var(--blue); z-index: 1; box-shadow: 0 0 0 6px #fff; }
+.pipe-node svg { width: 28px; height: 28px; }
+.pipe-step.final .pipe-node { background: linear-gradient(155deg, var(--blue), var(--blue-deep)); color: #fff; border-color: var(--blue-deep); box-shadow: 0 0 0 6px #fff, 0 14px 30px rgba(11,61,145,0.25); }
+.pipe-t h5 { font-size: 21px; font-weight: 700; color: var(--blue-deep); margin-bottom: 4px; }
+.pipe-t h5 .n { font-family: var(--font-latin); color: var(--blue); font-weight: 800; margin-right: 10px; }
+.pipe-t p { font-size: 17.5px; line-height: 1.6; color: var(--muted); }
+
+/* S31 功能点小卡（纵向三层：icon → 标题 → 说明） */
+.feat { flex-direction: column; align-items: flex-start; justify-content: center; gap: 13px; padding: 24px 28px; }
+.feat .icon-chip { width: 48px; height: 48px; }
+.feat .icon-chip svg { width: 24px; height: 24px; }
+.feat .feat-t { min-width: 0; }
+.feat .feat-t b { display: block; font-size: 23px; color: var(--blue-deep); margin-bottom: 5px; }
+.feat .feat-t span { font-size: 19px; color: var(--muted); line-height: 1.55; }
+
+/* ===========================================
+   可读性增强 · 场景一（ch1）
+   内容层三级梯度：引导标签 → 内容标题 → 正文，逐档放大
+   =========================================== */
+.ch1 .card h4 { font-size: 29px; }
+.ch1 .card p, .ch1 .card li { font-size: 22px; }
+.ch1 .card .sub { font-size: 20px; }
+.ch1 .vstep h5 { font-size: 24px; }
+.ch1 .vstep p { font-size: 19.5px; }
+.ch1 .img-frame .cap { font-size: 17px; }
+.ch1 .plan-chip .pc-t b { font-size: 22px; }
+.ch1 .plan-chip .pc-t span { font-size: 18px; }
+.ch1 .demo-btn { font-size: 21px; }
+.ch1 .demo-note { font-size: 17px; }
+/* 场景二补充：流程步骤 / 标签小丸 / 卡片关键结论条 */
+.ch1 .flow .step h5 { font-size: 24px; }
+.ch1 .flow .step p { font-size: 19.5px; }
+.ch1 .pill { font-size: 18px; padding: 8px 22px; }
+.ch1 .card-key {
+    margin-top: auto; background: var(--blue); color: #fff;
+    border-radius: 10px; padding: 15px 22px;
+    font-size: 20px; font-weight: 700; text-align: center; line-height: 1.5;
+}
+/* 场景三补充：裸列表 / 统计卡 / 数据表 / 引用块 */
+.ch1 .blist li { font-size: 22px; }
+.ch1 .stat .lbl { font-size: 19.5px; }
+.ch1 .big-num { font-size: 48px !important; }
+.ch1 .dtable th { font-size: 19px; padding: 16px 20px; }
+.ch1 .dtable td { padding: 15px 20px; font-size: 20px; }
+.ch1 .quote { font-size: 22px; }
+/* 场景四补充：流水线 / 功能点小卡 / 四问清单 */
+.ch1 .pipe-t h5 { font-size: 24px; }
+.ch1 .pipe-t p { font-size: 19.5px; }
+.ch1 .feat .feat-t b { font-size: 24px; }
+.ch1 .feat .feat-t span { font-size: 19.5px; }
+.ch1 .qlist .q { font-size: 21.5px; }
+
+/* ===========================================
+   演示控制条（舞台外）：进度 + 页码
+   =========================================== */
+.deck-controls {
+    display: flex; align-items: center; gap: 16px;
+    background: rgba(16,24,40,0.72); backdrop-filter: blur(8px);
+    border-radius: 100px; padding: 9px 22px;
+    font-family: var(--font-latin); font-size: 13px; color: #cdd8ea;
+    opacity: 0; transition: opacity 0.3s;
+}
+.deck-viewport:hover .deck-controls { opacity: 1; }
+.deck-progress { width: 180px; height: 4px; background: rgba(255,255,255,0.22); border-radius: 2px; overflow: hidden; }
+.deck-progress i { display: block; height: 100%; background: var(--blue-bright); width: 0; transition: width 0.3s; }
+
+/* ===========================================
+   内联编辑（E 键 / 左上角热区）
+   =========================================== */
+.edit-hotzone { position: fixed; top: 0; left: 0; width: 80px; height: 80px; z-index: 10000; cursor: pointer; }
+.edit-toggle {
+    position: fixed; top: 18px; left: 18px; z-index: 10001;
+    width: 44px; height: 44px; border-radius: 50%; border: none;
+    background: var(--blue); color: #fff; font-size: 19px; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(27,79,216,0.4);
+    opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+}
+.edit-toggle.show, .edit-toggle.active { opacity: 1; pointer-events: auto; }
+.edit-toggle.active { background: var(--green); }
+body.editing .slide.active [contenteditable="true"] { outline: 2px dashed rgba(27,79,216,0.45); outline-offset: 3px; border-radius: 4px; cursor: text; }
+.edit-banner {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 10002;
+    background: var(--ink); color: #fff; font-size: 14px; padding: 10px 22px; border-radius: 100px;
+    display: none; font-family: var(--font-cn); letter-spacing: 0.05em;
+}
+body.editing .edit-banner { display: block; }
+
+/* ===========================================
+   图片放大浮窗（Lightbox）：点击内容图片放大，点空白 / Esc 关闭
+   =========================================== */
+.slide img.zoomable { cursor: zoom-in; }
+.lb-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(16, 24, 40, 0.42);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.28s var(--ease-out-expo);
+    font-family: var(--font-cn); cursor: zoom-out;
+}
+.lb-overlay.open { opacity: 1; pointer-events: auto; }
+.lb-card {
+    background: #fff; border-radius: 18px; padding: 20px 20px 14px;
+    max-width: 92vw; max-height: 90vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 40px 120px rgba(11, 61, 145, 0.35);
+    transform: translateY(18px) scale(0.97);
+    transition: transform 0.28s var(--ease-out-expo);
+    cursor: default;
+}
+.lb-overlay.open .lb-card { transform: translateY(0) scale(1); }
+.lb-card img {
+    display: block; max-width: calc(92vw - 40px); max-height: calc(90vh - 92px);
+    object-fit: contain; border-radius: 8px; background: #f4f7fd;
+}
+.lb-cap { margin-top: 13px; font-size: 16px; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+.lb-cap::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--blue-bright); flex-shrink: 0; }
+.lb-close {
+    position: absolute; top: 24px; right: 30px; width: 46px; height: 46px;
+    border-radius: 50%; border: 1px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.12); color: #fff; font-size: 24px; line-height: 1;
+    cursor: pointer; display: grid; place-items: center;
+    transition: background 0.2s;
+}
+.lb-close:hover { background: rgba(255,255,255,0.24); }
+</style>
+</head>
+<body>
+<div class="deck-viewport">
+<main class="deck-stage" id="deckStage">
+
+<!-- ===========================================
+     S1 封面
+     =========================================== -->
+<section class="slide slide-title">
+    <div class="grid-bg"></div>
+    <div class="slide-chrome" style="border-bottom: none; background: transparent;">
+        <div class="brand reveal d1"><span class="brand-mark">AI</span><span>临床研发中心 · 数智化组</span></div>
+        <div class="chrome-right reveal d1">2026 · 09</div>
+    </div>
+    <div class="side-index reveal d2">05</div>
+    <div class="hero" style="position: absolute; left: 88px; top: 236px; width: 1360px; z-index: 3;">
+        <div class="eyebrow reveal d2">个人 AI 应用场景分享会</div>
+        <h1 class="reveal d3" style="font-size: 92px; line-height: 1.2; font-weight: 900;">把一线痛点，<br>做成<span style="color: var(--blue);">用得起来</span>的 AI 工具</h1>
+        <p class="reveal d4" style="margin-top: 36px; font-size: 27px; line-height: 1.65; color: var(--muted); max-width: 1100px;">来自 <strong>运营管理部、药物安全部、数据管理部、医学部</strong> 的五个真实场景——<br>从业务痛点出发，用 AI 跑第一棒，由人做最终判断。</p>
+    </div>
+    <div class="reveal d5" style="position: absolute; left: 88px; right: 88px; bottom: 78px; display: flex; align-items: center; gap: 40px; padding-top: 28px; border-top: 1px solid var(--hairline); font-size: 17px; color: var(--muted); z-index: 3;">
+        <span style="display:flex;align-items:center;gap:10px;"><i style="width:8px;height:8px;border-radius:50%;background:var(--blue-bright);"></i>运营考核可视化</span>
+        <span style="display:flex;align-items:center;gap:10px;"><i style="width:8px;height:8px;border-radius:50%;background:var(--blue-bright);"></i>SAE 智能处理</span>
+        <span style="display:flex;align-items:center;gap:10px;"><i style="width:8px;height:8px;border-radius:50%;background:var(--blue-bright);"></i>实验室范围数据集智能审核</span>
+        <span style="display:flex;align-items:center;gap:10px;"><i style="width:8px;height:8px;border-radius:50%;background:var(--blue-bright);"></i>安全性数据集智能审核</span>
+        <span style="display:flex;align-items:center;gap:10px;"><i style="width:8px;height:8px;border-radius:50%;background:var(--blue-bright);"></i>方案变更说明智能生成</span>
+        <span style="flex:1;"></span>
+        <span style="font-family:var(--font-latin); font-weight:700; letter-spacing:0.1em;">汇报：数智化组</span>
+    </div>
+</section>
+
+<!-- ===========================================
+     S2 汇报总览：五个场景 × 四个部门
+     =========================================== -->
+<section class="slide">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>00</b> 整体介绍</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">总览 · OVERVIEW</div>
+        <h2 class="reveal d2">五个场景，覆盖 <span class="accent">四个业务部门</span></h2>
+    </div>
+    <div class="slide-body" style="top: 268px;">
+        <div class="cards c3 reveal d3" style="grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; height: auto;">
+            <div class="card plain"><div class="no">01 · 运营管理部</div><h4>运营考核可视化</h4><p class="sub">590+ 人、12 个部门的考核：200 多条标准自动核算，结果可视化排名</p></div>
+            <div class="card plain"><div class="no">02 · 药物安全部</div><h4>SAE 智能处理</h4><p class="sub">几十页报告表自动抽取 5 类关键信息，从按小时计到按秒计</p></div>
+            <div class="card plain"><div class="no">03 · 数据管理部</div><h4>实验室范围数据集智能审核</h4><p class="sub">9 道规则关卡 + AI 二审，核查几百条"正常值范围"尺子</p></div>
+            <div class="card plain"><div class="no">04 · 数据管理部</div><h4>安全性数据集智能审核</h4><p class="sub">检查异常 ↔ 不良事件的医学"连线题"，AI 匹配、程序核查、人工仲裁</p></div>
+            <div class="card plain"><div class="no">05 · 医学部</div><h4>方案变更说明智能生成</h4><p class="sub">方案比对 → 证据卡片 → 医学判断 → 变更说明成稿，完整闭环</p></div>
+            <div class="card" style="background: var(--blue); border-color: var(--blue);">
+                <div class="no" style="color:#cfe0ff;">时间分配</div>
+                <p style="color:#fff; font-size:20px; line-height:1.9;">整体介绍 <b>2</b> min<br>场景讲解 <b>28</b> min<br>总结反思 <b>3</b> min</p>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">数智化组 · 2026-09</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S3 汇报逻辑：共性 + 归属人 + 三段式
+     =========================================== -->
+<section class="slide">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>00</b> 整体介绍</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">汇报逻辑 · LOGIC</div>
+        <h2 class="reveal d2">以小见大：<span class="accent">痛点 → 解法 → 效果</span></h2>
+    </div>
+    <div class="slide-body" style="top: 268px;">
+        <div class="cards c3 reveal d3" style="height: 300px;">
+            <div class="card">
+                <div class="no">共性</div>
+                <h4>都来自一线业务痛点</h4>
+                <p>五个场景有一个共性：<strong>以小见大</strong>——全部来自业务同事亲身经历的一线痛点，不是凭空设想的"AI 秀场"。</p>
+            </div>
+            <div class="card">
+                <div class="no">归属人</div>
+                <h4>灵感贡献者 × 自主开发者</h4>
+                <p>场景归属人要么是灵感的贡献者，要么是自主开发者——他们都是<strong>善于思考、敢于尝鲜、跑在技术发展第一线</strong>的业务同事。</p>
+            </div>
+            <div class="card">
+                <div class="no">汇报逻辑</div>
+                <h4>每个场景讲三件事</h4>
+                <p>① 业务痛点是什么；② 我们是怎样通过 AI 解决问题的；③ 最终效果与下一步计划是什么。</p>
+            </div>
+        </div>
+        <div class="flow reveal d4" style="margin-top: 30px;">
+            <div class="step"><div class="s-no">1</div><h5>先从业务讲起</h5><p>这个环节在临床试验里是什么、为什么重要</p></div>
+            <div class="step"><div class="s-no">2</div><h5>场景痛点</h5><p>过去靠人怎么做，难在哪里、贵在哪里</p></div>
+            <div class="step"><div class="s-no">3</div><h5>工具 Workflow</h5><p>AI + 程序怎么把这件事重做一遍</p></div>
+            <div class="step"><div class="s-no">4</div><h5>效果与计划</h5><p>实际成效、验证情况与下一步迭代方向</p></div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">数智化组 · 2026-09</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S4 章节页：场景一 运营考核可视化
+     =========================================== -->
+<section class="slide slide-section">
+    <div class="grid-bg"></div>
+    <div class="slide-chrome" style="border-bottom: none; background: transparent;">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>01</b> 运营管理部</span></div>
+    </div>
+    <div class="sec-no">01</div>
+    <div class="sec-block">
+        <div class="sec-tag reveal d1">场景一 · 运营管理部</div>
+        <h2 class="reveal d2">运营考核<span class="accent">可视化</span></h2>
+        <p class="sec-sub reveal d3">590+ 人、12 个部门、30 多种岗位的绩效考核：200 多条标准固化成表格公式，五路数据一键归集，AI 自动核算，结果可视化呈现。</p>
+    </div>
+    <div class="sec-meta reveal d4">
+        <span class="m-item"><span class="dot"></span>依托工具：<b>AI 工具 + 齐飞工作助手（妙搭）</b></span>
+        <span class="m-item"><span class="dot"></span>建议时长：<b>5 min</b></span>
+        <div class="sec-progress"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+    </div>
+</section>
+
+<!-- ===========================================
+     S5 场景一 · 业务背景：考核三难
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>01</b> 运营考核可视化</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">先从业务讲起 · CONTEXT</div>
+        <h2 class="reveal d2">590 多人的考核，难在<span class="accent">三个地方</span></h2>
+        <p class="head-note reveal d2">临床研发中心 590 多人、12 个部门、30 多种岗位——绩效考核的复杂性来自规模，更来自差异。</p>
+    </div>
+    <div class="slide-body">
+        <div class="cards c3 reveal d3" style="height: 430px;">
+            <div class="card">
+                <span class="icon-chip" style="margin-bottom: 18px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></svg></span>
+                <div class="no">难点 ①</div>
+                <h4>标准多，且各不相同</h4>
+                <p>每个部门一套专属标准，合计 <strong>200 多条</strong>——CRA 的尺子和统计师的尺子完全不是一回事，无法套用同一把量尺。</p>
+            </div>
+            <div class="card">
+                <span class="icon-chip" style="margin-bottom: 18px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg></span>
+                <div class="no">难点 ②</div>
+                <h4>数据散在五处</h4>
+                <p>考核数据散在<strong>四套业务系统</strong>：太美 CCP（项目协作）、EDC（数据管理）、eTMF（文档管理）、eQuality（质量管理），外加领导的人工评价——五路数据没有统一入口。</p>
+            </div>
+            <div class="card">
+                <span class="icon-chip" style="margin-bottom: 18px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+                <div class="no">难点 ③</div>
+                <h4>最终要汇成一个数</h4>
+                <p>五路数据最后要变成每个人头上一个<strong>公平的分数</strong>，既要算得准，也要让大家认。</p>
+            </div>
+        </div>
+        <div class="reveal d4" style="margin-top: 28px; background: var(--ink); border-radius: 14px; padding: 26px 36px; display: flex; align-items: center; gap: 28px;">
+            <span style="font-size:22px; color:#9fb4d8; font-weight:500; flex-shrink:0;">考核总分 =</span>
+            <span style="font-family:var(--font-latin); font-size:28px; font-weight:800; color:#fff; letter-spacing:0.02em;">基础分 <span style="color:var(--blue-bright);">+</span> 项目评分 <span style="color:var(--blue-bright);">+</span> 综合评价 <span style="color:var(--blue-bright);">+</span> 整体评价</span>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景一 · 运营考核可视化</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S6 场景一 · 工具 Workflow：五步闭环
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>01</b> 运营考核可视化</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">工具 WORKFLOW</div>
+        <h2 class="reveal d2">标准化 → 自动化 → <span class="accent">可视化</span>的考核全流程</h2>
+        <p class="head-note reveal d2">依托 AI 工具与齐飞工作助手，把"收数、算分、看结果"整条链路重做一遍。</p>
+    </div>
+    <div class="slide-body">
+        <div class="two-col w46">
+            <div class="vsteps reveal d3">
+                <div class="vstep"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg></span><div class="vstep-t"><h5><span class="n">01</span>定制化考核模板</h5><p>12 个部门 12 套专属计算表格，200 余条标准逐条拆解、嵌入自动化公式，规则统一固化</p></div></div>
+                <div class="vstep"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></span><div class="vstep-t"><h5><span class="n">02</span>多源数据一键归集</h5><p>太美 CCP、EDC、eTMF、eQuality 四大系统及主管评价指标，按预设列项统一导入</p></div></div>
+                <div class="vstep"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg></span><div class="vstep-t"><h5><span class="n">03</span>AI 自动核算分数</h5><p>内嵌公式自动完成全维度核算、分数统计、指标汇总，零人工二次核对，一键生成精准成绩</p></div></div>
+                <div class="vstep"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg></span><div class="vstep-t"><h5><span class="n">04</span>可视化交互展示</h5><p>齐飞工作助手"妙搭"搭建可交互展示系统：数据筛选、同岗位排名、差异化颜色标记</p></div></div>
+                <div class="vstep"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span><div class="vstep-t"><h5><span class="n">05</span>结果查询与应用</h5><p>快速筛选部门、岗位、人员数据，直观对比同岗位差异，支撑考核复盘与人员管理</p></div></div>
+            </div>
+            <div class="img-frame reveal d4">
+                <img src="场景一-运营考核可视化-第6页配图-智能考核全流程.png" alt="智能考核全流程：多源数据归集漏斗">
+                <div class="cap">多源数据归集漏斗：四大系统 + 主管评价 → AI 标准化清洗与自动核算 → 部门 / 岗位 / 个人三级成绩</div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景一 · 运营考核可视化</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S7 场景一 · 可视化亮点与设计理念
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>01</b> 运营考核可视化</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">可视化亮点 · HIGHLIGHT</div>
+        <h2 class="reveal d2">颜色标记 + 一条明确的<span class="accent">设计红线</span></h2>
+    </div>
+    <div class="slide-body">
+        <div class="two-col w58" style="height: 470px;">
+            <div>
+                <div class="card plain reveal d3" style="margin-bottom: 24px; padding: 26px 30px;">
+                    <h4 style="margin-bottom: 18px;">差异化颜色标记规则</h4>
+                    <p style="margin-bottom: 14px;"><span class="legend-dot" style="background: var(--green);"></span><strong style="color: var(--green);">绿色 = 前 30%</strong>　<span class="legend-dot" style="background: var(--red); margin-left: 18px;"></span><strong style="color: var(--red);">红色 = 后 30%</strong></p>
+                    <p class="sub" style="margin-bottom: 16px;">只在人数最多的 4 个大部门标注首尾 30%，让两头都被看见。</p>
+                    <p style="margin-bottom: 6px;"><span class="legend-dot" style="background: var(--gold);"></span><strong style="color: var(--gold);">金</strong>　<span class="legend-dot" style="background: var(--teal);"></span><strong style="color: var(--teal);">青</strong>　<span class="legend-dot" style="background: var(--rose);"></span><strong style="color: var(--rose);">玫</strong></p>
+                    <p class="sub">其余 8 个小部门只标并列前三名，三色标识、简单清晰。</p>
+                </div>
+                <div class="reveal d4" style="display: flex; align-items: center; gap: 22px;">
+                    <a class="demo-btn" href="https://glimmer-01.github.io/clinical_Q2/" target="_blank" rel="noopener">在线演示系统 <span class="arrow">↗</span></a>
+                    <span class="demo-note">齐飞工作助手 · 妙搭搭建<br>glimmer-01.github.io/clinical_Q2</span>
+                </div>
+            </div>
+            <div class="quote reveal d4" style="align-self: start; font-size: 25px; line-height: 1.85;">
+                "我们<strong>不做部门之间的横向比较</strong>——CRA 和统计师没有可比性，硬比只会制造矛盾。<br><br>让优秀的人<em>被看见</em>，让落后的人<em>被提醒</em>，而不是被示众。"
+                <div class="who">—— 系统设计原则</div>
+            </div>
+        </div>
+        <div class="stat-row reveal d5" style="grid-template-columns: repeat(3, 1fr); margin-top: 28px;">
+            <div class="stat" style="flex-direction: row; align-items: center; gap: 18px;">
+                <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></span>
+                <div style="min-width: 0;"><div class="num" style="font-size: 30px;">快速筛选</div><div class="lbl" style="font-size: 19px;">部门、岗位、人员三级数据一键筛选，管理人员随查随看</div></div>
+            </div>
+            <div class="stat" style="flex-direction: row; align-items: center; gap: 18px;">
+                <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></span>
+                <div style="min-width: 0;"><div class="num" style="font-size: 30px;">同岗位对比</div><div class="lbl" style="font-size: 19px;">排名只在同一岗位标尺内进行，拒绝跨岗位硬比</div></div>
+            </div>
+            <div class="stat" style="flex-direction: row; align-items: center; gap: 18px;">
+                <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></svg></span>
+                <div style="min-width: 0;"><div class="num" style="font-size: 30px;">精准定位</div><div class="lbl" style="font-size: 19px;">颜色标记直接锁定优势人群与待提升人群，优劣一目了然</div></div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景一 · 运营考核可视化</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S8 场景一 · 下一步计划
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>01</b> 运营考核可视化</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">下一步计划 · NEXT</div>
+        <h2 class="reveal d2">从系统迭代到<span class="accent">全域落地</span></h2>
+    </div>
+    <div class="slide-body">
+        <div class="img-frame reveal d3" style="width: 1000px; margin: 0 auto;">
+            <img src="场景一-运营考核可视化-第8页配图-下一步计划.png" alt="下一步计划三步走路线图">
+            <div class="cap">三步走路线图：近期深度迭代 → 中期全域推广 → 远期场景拓展</div>
+        </div>
+        <div class="stat-row reveal d4" style="grid-template-columns: repeat(3, 1fr); margin-top: 24px;">
+            <div class="plan-chip">
+                <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                <div class="pc-t"><b>近期 · 深度迭代</b><span>全流程去 Excel 化：数据直连、一键导入、自动运算、实时生成</span></div>
+            </div>
+            <div class="plan-chip">
+                <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                <div class="pc-t"><b>中期 · 全域推广</b><span>成熟经验沉淀为标准流程，覆盖中心全部门、统一考核规范</span></div>
+            </div>
+            <div class="plan-chip">
+                <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></span>
+                <div class="pc-t"><b>远期 · 场景拓展</b><span>延伸至指标复盘、成果汇总、岗位对标，打造泛用型数据中枢</span></div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景一 · 运营考核可视化</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S9 章节页：场景二 SAE 智能处理
+     =========================================== -->
+<section class="slide slide-section">
+    <div class="grid-bg"></div>
+    <div class="slide-chrome" style="border-bottom: none; background: transparent;">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>02</b> 药物安全部</span></div>
+    </div>
+    <div class="sec-no">02</div>
+    <div class="sec-block">
+        <div class="sec-tag reveal d1">场景二 · 药物安全部</div>
+        <h2 class="reveal d2">SAE <span class="accent">智能处理</span></h2>
+        <p class="sec-sub reveal d3">严重不良事件报告表：9 张表格、几十页的 Word 文档，自动抽取 5 类关键信息并生成规范汇总——原来按小时计的活，现在按秒计。</p>
+    </div>
+    <div class="sec-meta reveal d4">
+        <span class="m-item"><span class="dot"></span>验证情况：<b>10+ 个真实案例跑通</b></span>
+        <span class="m-item"><span class="dot"></span>建议时长：<b>5 min</b></span>
+        <div class="sec-progress"><i></i><i class="on"></i><i></i><i></i><i></i></div>
+    </div>
+</section>
+
+<!-- ===========================================
+     S10 场景二 · 业务背景：什么是 SAE
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>02</b> SAE 智能处理</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">先从业务讲起 · CONTEXT</div>
+        <h2 class="reveal d2">安全这条线，<span class="accent">监管盯得最紧</span></h2>
+    </div>
+    <div class="slide-body">
+        <div class="two-col reveal d3" style="height: 460px;">
+            <div class="card">
+                <span class="icon-chip" style="margin-bottom: 18px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M12 8v6"/><path d="M9 11h6"/></svg></span>
+                <div class="no">业务背景 ①</div>
+                <h4>安全，决定了新药"敢不敢用"</h4>
+                <p>临床试验招募受试者，按试验方案给药，持续观察疗效和安全性。疗效回答<em>"有没有用"</em>，安全性回答<em>"敢不敢用"</em>。</p>
+                <p style="margin-top: 12px;">受试者在试验期间出现<strong>死亡、住院、危及生命</strong>的情况，即为<strong>"严重不良事件"（SAE）</strong>。</p>
+                <div class="card-key">SAE：临床试验中最核心的安全指标，监管盯得最紧</div>
+            </div>
+            <div class="card">
+                <span class="icon-chip" style="margin-bottom: 18px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.2a2 2 0 0 0-.6-1.4L12 12l-4.4 4.4a2 2 0 0 0-.6 1.4V22"/><path d="M7 2v4.2a2 2 0 0 0 .6 1.4L12 12l4.4-4.4A2 2 0 0 0 17 6.2V2"/></svg></span>
+                <div class="no">业务背景 ②</div>
+                <h4>严格的法规时效要求</h4>
+                <p>一旦发生 SAE，必须在极为严苛的<strong>规定时限</strong>内上报国家药监部门——我们的药物安全部，就是专门<strong>接收、处理、上报</strong>这些事件的部门。</p>
+                <div class="card-key">迟报 · 漏报 · 错报，直接定性为重大监管事故</div>
+            </div>
+        </div>
+        <div class="reveal d4" style="margin-top: 26px; background: var(--ink); border-radius: 14px; padding: 24px 36px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 23px; color: #fff; font-weight: 600;">药物安全部的数据专员，就是这条生命线上的<span style="color: var(--blue-bright); font-weight: 800;">最后一道人工防线</span>。</span>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景二 · SAE 智能处理</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S11 场景二 · 场景痛点
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>02</b> SAE 智能处理</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">场景痛点 · PAIN POINTS</div>
+        <h2 class="reveal d2">几十页报告表，靠人<span class="accent">逐字誊抄</span></h2>
+        <p class="head-note reveal d2">AE 以一份"报告表"的形式从研究中心传来：Word 文档，9 张表格、几十页，把受试者的来龙去脉全装在里面。</p>
+    </div>
+    <div class="slide-body">
+        <div class="two-col w58" style="height: 460px;">
+            <div class="card plain reveal d3" style="justify-content: center;">
+                <div style="display: flex; align-items: center; gap: 28px;">
+                    <img src="场景二-SAE智能处理-第11页配图-复杂的源输入.png" alt="极端复杂的源输入：几十页 Word 报告表堆叠" style="width: 240px; flex-shrink: 0;">
+                    <div>
+                        <div class="no">数据专员的日常工作</div>
+                        <p style="margin-bottom: 14px;">从每份报告表里，把 <strong>5 类关键信息</strong>逐字摘录出来，核对无误，再拼成规范汇总文档：</p>
+                        <div>
+                            <span class="pill solid">用药情况</span><span class="pill solid">检查检验</span><span class="pill solid">事件详情</span><span class="pill solid">既往病史</span><span class="pill solid">知情同意</span>
+                        </div>
+                        <p class="sub" style="margin-top: 14px;">用过什么药、做过哪些检查化验、有什么既往病史、事件起因经过、什么时候签的知情同意书。</p>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="cards" style="grid-template-columns: 1fr; gap: 18px; height: 100%;">
+                    <div class="card reveal d3" style="padding: 22px 28px; flex-direction: row; align-items: center; gap: 18px;">
+                        <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                        <div><h4 style="margin-bottom: 6px; font-size: 25px;">① 纯人工</h4><p class="sub">两份窗口并排，左边报告、右边汇总表，眼睛来回扫</p></div>
+                    </div>
+                    <div class="card reveal d4" style="padding: 22px 28px; flex-direction: row; align-items: center; gap: 18px;">
+                        <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><path d="M12 17h.01"/></svg></span>
+                        <div><h4 style="margin-bottom: 6px; font-size: 25px;">② 零容错</h4><p class="sub">抄错一个日期、一个剂量单位，传到下游就是事故</p></div>
+                    </div>
+                    <div class="card reveal d5" style="padding: 22px 28px; flex-direction: row; align-items: center; gap: 18px;">
+                        <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 10 5-10 5L2 7l10-5Z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/></svg></span>
+                        <div><h4 style="margin-bottom: 6px; font-size: 25px;">③ 会堆量</h4><p class="sub">报告集中来的时候，加班誊抄是常态</p></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="quote reveal d5" style="margin-top: 24px; padding: 22px 32px; font-size: 22px;">
+            这类工作恰好符合标准化流程的特征：<strong>从固定的表里、提取固定的字段、按固定的格式拼起来</strong>；量大；又最怕人走神。——这正是 AI 最该接住的环节。
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景二 · SAE 智能处理</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S12 场景二 · 工具 Workflow + 技术要点①
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>02</b> SAE 智能处理</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">工具 WORKFLOW</div>
+        <h2 class="reveal d2">按小时计的活，现在<span class="accent">按秒计</span></h2>
+    </div>
+    <div class="slide-body">
+        <div style="display: flex; gap: 24px; align-items: stretch; height: 440px;">
+            <div class="card reveal d3" style="width: 296px; flex-shrink: 0; justify-content: center; align-items: center; text-align: center; background: #f4f6fa;">
+                <span class="icon-chip" style="margin-bottom: 18px; background: #e9edf4; color: var(--muted);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.2a2 2 0 0 0-.6-1.4L12 12l-4.4 4.4a2 2 0 0 0-.6 1.4V22"/><path d="M7 2v4.2a2 2 0 0 0 .6 1.4L12 12l4.4-4.4A2 2 0 0 0 17 6.2V2"/></svg></span>
+                <h4 style="font-size: 27px; margin-bottom: 4px; color: var(--ink);">传统模式</h4>
+                <p style="font-family: var(--font-latin); font-size: 18px; font-weight: 800; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 12px;">按小时计</p>
+                <p class="sub" style="font-size: 19.5px;">高度依赖人工誊抄，耗时长且极易出现人为失误</p>
+            </div>
+            <div class="flow reveal d4" style="flex: 1; align-self: center;">
+                <div class="step">
+                    <div class="s-no">1</div>
+                    <h5>上传报告表</h5>
+                    <p>把 SAE 报告表的 Word 文档传给工具</p>
+                    <span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-top: 14px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m8 17 4-4 4 4"/></svg></span>
+                </div>
+                <div class="step">
+                    <div class="s-no">2</div>
+                    <h5>自动抽取 5 类信息</h5>
+                    <p>用药、检查检验、事件详情、病史、知情同意，按详实规则提取</p>
+                    <span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-top: 14px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></span>
+                </div>
+                <div class="step">
+                    <div class="s-no">3</div>
+                    <h5>生成规范汇总 Word</h5>
+                    <p>自动拼装成规范汇总文档，供审评、录入、上报使用</p>
+                    <span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-top: 14px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m9 15 2 2 4-4"/></svg></span>
+                </div>
+            </div>
+            <div class="card reveal d5" style="width: 296px; flex-shrink: 0; justify-content: center; align-items: center; text-align: center; background: var(--blue); border-color: var(--blue);">
+                <span class="icon-chip" style="margin-bottom: 18px; background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.32); color: #fff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2 0-2.8-.8-.7-2-.7-3 0Z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.9A12.9 12.9 0 0 1 22 2c0 2.7-.9 7.5-6.1 11a22 22 0 0 1-3.9 2Z"/><path d="M9 12H4s.6-3.8 2-5c1.6-1.4 5 0 5 0"/><path d="M12 15v5s3.8-.6 5-2c1.4-1.6 0-5 0-5"/></svg></span>
+                <h4 style="font-size: 27px; margin-bottom: 4px; color: #fff;">数智模式</h4>
+                <p style="font-family: var(--font-latin); font-size: 18px; font-weight: 800; color: #bcd2ff; letter-spacing: 0.04em; margin-bottom: 12px;">按秒计</p>
+                <p style="font-size: 19.5px; color: #dbe7ff; line-height: 1.7;">瞬间完成结构化提取，已在 <strong style="color:#fff;">10+</strong> 真实项目中跑通严格验证</p>
+            </div>
+        </div>
+        <div class="card reveal d5" style="margin-top: 26px; padding: 30px 36px;">
+            <div class="no">技术要点 ① · 输出稳定性</div>
+            <p style="font-size: 20px;">不让大模型直接"看着文档写摘要"——同样的文件问两次，措辞可能就不一样。而是<strong>让 AI 帮我写一套确定性的解析脚本</strong>：同一份文件跑一百次，结果一字不差。</p>
+            <p style="font-size: 20px; margin-top: 10px;"><em>可复现、可审计</em>——这正是药物安全这种强合规场景的硬要求。</p>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景二 · SAE 智能处理</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S13 场景二 · 技术要点②：细节把控（双图）
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>02</b> SAE 智能处理</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">技术要点 ② · 细节把控</div>
+        <h2 class="reveal d2">真正的难度，在<span class="accent">细节的把控</span></h2>
+        <p class="head-note reveal d2">在一份 9 张表格、几十页的 Word 文档中，按详实的规则去提取、按详实的规则去总结——举两个真实的"坑"。</p>
+    </div>
+    <div class="slide-body">
+        <div class="two-col">
+            <div>
+                <div class="img-frame reveal d3" style="height: 400px;">
+                    <img src="sae智能提取-问题一.jpeg" alt="SAE 报告表勾选框截图">
+                    <div class="cap">报告表中的勾选框与特殊字符</div>
+                </div>
+                <div class="card plain reveal d4" style="margin-top: 20px; padding: 24px 30px; flex-direction: row; align-items: center; gap: 18px;">
+                    <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/></svg></span>
+                    <div>
+                        <h4 style="font-size: 25px; margin-bottom: 8px;">坑一：勾选框里的特殊字符</h4>
+                        <p class="sub">容易把"没勾"当成"已勾"——性别、有没有病史，<strong>全部判反</strong>。</p>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="img-frame reveal d4" style="height: 400px;">
+                    <img src="sae智能提取-问题二.jpeg" alt="SAE 报告表三张相似用药表截图">
+                    <div class="cap">三张长得几乎一模一样的用药表</div>
+                </div>
+                <div class="card plain reveal d5" style="margin-top: 20px; padding: 24px 30px; flex-direction: row; align-items: center; gap: 18px;">
+                    <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16V4a2 2 0 0 1 2-2h10"/></svg></span>
+                    <div>
+                        <h4 style="font-size: 25px; margin-bottom: 8px;">坑二：三张相似的用药表</h4>
+                        <p class="sub">其中一张装的是<strong>试验药</strong>——按规定绝不能混进提取结果，这是<em>业务红线</em>。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景二 · SAE 智能处理</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S14 场景二 · 下一步计划
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>02</b> SAE 智能处理</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">下一步计划 · NEXT</div>
+        <h2 class="reveal d2">从"抄写员"到<span class="accent">"审核员"</span></h2>
+    </div>
+    <div class="slide-body tight-head">
+        <div style="display: flex; gap: 26px; height: 100%;">
+            <div class="card plain reveal d3" style="width: 500px; flex-shrink: 0; padding: 28px 34px; justify-content: center;">
+                <div class="no" style="justify-content: center;">人类角色的演进</div>
+                <div style="background: var(--blue); border-radius: 14px; padding: 24px 26px; text-align: center;">
+                    <div style="font-size: 25px; font-weight: 800; color: #fff; margin-bottom: 7px;">高价值的审核员 / 分析师</div>
+                    <div style="font-size: 18.5px; color: #cfe0ff;">复核把关 · 医学判断 · 安全性趋势分析</div>
+                </div>
+                <div style="display: flex; justify-content: center; padding: 12px 0;">
+                    <svg width="54" height="72" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="21" x2="12" y2="4"/><path d="m5 11 7-7 7 7"/></svg>
+                </div>
+                <div style="background: #f1f4f9; border: 1px solid var(--hairline); border-radius: 14px; padding: 22px 26px; text-align: center;">
+                    <div style="font-size: 23px; font-weight: 700; color: var(--muted); margin-bottom: 6px;">低价值的抄写员</div>
+                    <div style="font-size: 18px; color: var(--faint);">誊抄 · 核对 · 加班堆量</div>
+                </div>
+                <p class="sub" style="margin-top: 20px; text-align: center; font-size: 19px;">机器负责绝对准确的搬运，人类回归高价值的医学判断与安全性趋势分析。</p>
+            </div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 24px; min-width: 0;">
+                <div class="card reveal d4" style="flex: 1; justify-content: center; padding: 26px 32px;">
+                    <span class="icon-chip" style="margin-bottom: 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span>
+                    <div class="no">短期 · 全自动化常驻监听</div>
+                    <h4>接入邮箱 MCP，7 × 24 持续运行</h4>
+                    <ul class="blist dense" style="margin-top: 6px;">
+                        <li>自动识别邮件中的 SAE 文件</li>
+                        <li>自动触发解析、字段抽取、文本组装、结果输出与日志记录全流程</li>
+                        <li>人从"抄写员"变成"审核员"：誊抄交给机器，人只做复核</li>
+                    </ul>
+                </div>
+                <div class="card reveal d5" style="flex: 1; background: var(--blue); border-color: var(--blue); justify-content: center; padding: 26px 32px;">
+                    <span class="icon-chip" style="margin-bottom: 12px; background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.32); color: #fff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span>
+                    <div class="no" style="color:#cfe0ff;">远期 · SMART-PV</div>
+                    <h4 style="color:#fff;">打通药物警戒业务全链条</h4>
+                    <p style="color:#e6efff; font-size: 21px; line-height: 1.8;">聚合 SAE 邮件提取、多人在线审阅、审批传递、智能撰写、智能录入等功能。</p>
+                    <div style="margin-top: 16px;">
+                        <span class="pill" style="background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.3); color:#fff;">邮件提取</span>
+                        <span class="pill" style="background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.3); color:#fff;">在线审阅</span>
+                        <span class="pill" style="background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.3); color:#fff;">审批传递</span>
+                        <span class="pill" style="background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.3); color:#fff;">智能撰写</span>
+                        <span class="pill" style="background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.3); color:#fff;">智能录入</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景二 · SAE 智能处理</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S15 章节页：场景三 数据管理部双工具
+     =========================================== -->
+<section class="slide slide-section">
+    <div class="grid-bg"></div>
+    <div class="slide-chrome" style="border-bottom: none; background: transparent;">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>03</b> 数据管理部</span></div>
+    </div>
+    <div class="sec-no">03</div>
+    <div class="sec-block">
+        <div class="sec-tag reveal d1">场景三 · 数据管理部（双工具）</div>
+        <h2 class="reveal d2">数据集 <span class="accent">AI 审核</span>双工具</h2>
+        <p class="sec-sub reveal d3">实验室范围数据集智能审核 &amp; 安全性数据集智能审核——数据管理工作中两个最"磨人"的核查场景，分别用"规则 + AI"的双层结构重做一遍。</p>
+    </div>
+    <div class="sec-meta reveal d4">
+        <span class="m-item"><span class="dot"></span>工具 3.1：<b>实验室范围数据集智能审核</b></span>
+        <span class="m-item"><span class="dot"></span>工具 3.2：<b>安全性数据集智能审核</b></span>
+        <span class="m-item"><span class="dot"></span>建议时长：<b>12 min</b></span>
+        <div class="sec-progress"><i></i><i></i><i class="on"></i><i></i><i></i></div>
+    </div>
+</section>
+
+<!-- ===========================================
+     S16 场景三 · 业务背景：数据管理的价值
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>03</b> 数据集 AI 审核</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">先从业务讲起 · CONTEXT</div>
+        <h2 class="reveal d2">数据质量，就是临床试验的<span class="accent">生命线</span></h2>
+    </div>
+    <div class="slide-body">
+        <div class="two-col w58" style="height: 430px;">
+            <div>
+                <ul class="blist reveal d3">
+                    <li>一款新药从实验室走到药房，必须跨过<strong>临床试验</strong>这道门槛：在真实患者身上验证它是否安全、是否有效。</li>
+                    <li>试验过程中会产生海量数据——<strong>每一次访视、每一管血、每一项化验指标</strong>都会被记录下来，最终提交给药监部门，作为审批的核心依据。</li>
+                    <li>临床试验的本质，就是<em>"用数据证明一款药值得被信任"</em>。</li>
+                    <li>数据管理部的职责：确保试验数据<strong>真实、准确、完整、一致</strong>。专业判断由研究者进行，DM 负责让几百个中心报上来的数据口径统一、没有漏错，经得起药监部门的审评。</li>
+                </ul>
+            </div>
+            <div>
+                <div class="card reveal d4" style="height: 250px; justify-content: center;">
+                    <p style="font-size: 28px; line-height: 1.8; text-align: center;">"数据质量就是<br><strong style="font-size: 34px;">临床试验的生命线</strong>"</p>
+                    <p class="sub" style="text-align: center; margin-top: 12px;">—— 行业里的一句话</p>
+                </div>
+                <div class="card plain reveal d5" style="margin-top: 22px; padding: 22px 28px;">
+                    <p style="font-size: 21px;">这项支持保障工作里，有<strong>两个场景最磨人</strong>——今天汇报的两个工具，就分别解决这两个场景。</p>
+                </div>
+            </div>
+        </div>
+        <div class="stat-row reveal d5" style="grid-template-columns: repeat(4, 1fr); margin-top: 26px;">
+            <div class="stat" style="padding: 20px 26px;"><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-bottom: 0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="11" cy="14.5" r="2.5"/><path d="m13.2 16.7 2.3 2.3"/></svg></span><div class="num" style="font-size: 34px;">真实</div><div class="lbl">数据可溯源，经得起核查</div></div>
+            <div class="stat" style="padding: 20px 26px;"><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-bottom: 0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><div class="num" style="font-size: 34px;">准确</div><div class="lbl">记录无误，与原始凭证相符</div></div>
+            <div class="stat" style="padding: 20px 26px;"><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-bottom: 0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/></svg></span><div class="num" style="font-size: 34px;">完整</div><div class="lbl">应收数据一项不缺</div></div>
+            <div class="stat" style="padding: 20px 26px;"><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-bottom: 0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/></svg></span><div class="num" style="font-size: 34px;">一致</div><div class="lbl">几百个中心，同一口径</div></div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景三 · 数据集 AI 审核</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S17 工具封面：工具 3.1 实验室范围数据集智能审核
+     =========================================== -->
+<section class="slide slide-tool">
+    <div class="grid-bg"></div>
+    <div class="slide-chrome" style="border-bottom: none; background: transparent;">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>03</b> 数据管理部 · 工具 3.1</span></div>
+    </div>
+    <div class="tool-no reveal d2">
+        <span class="t-label">TOOL</span>
+        <span class="t-num">3.1</span>
+        <span class="t-bar"></span>
+    </div>
+    <div class="tool-block">
+        <div class="sec-tag reveal d1">场景三 · 工具 3.1</div>
+        <h2 class="reveal d2">实验室范围数据集<br><span class="accent">智能审核</span></h2>
+        <p class="tool-sub reveal d3">几百条"正常值范围"尺子，过去靠人逐行核对、按天计；现在用"规则初审 + AI 二审"的双层结构，点一下按钮、按分钟拿到完整审核报告。</p>
+        <div class="tool-agenda reveal d4">
+            <div class="ag-title">本节内容 · CONTENTS</div>
+            <div class="ag-items">
+                <span class="ag"><b>01</b>场景背景</span>
+                <span class="ag"><b>02</b>场景痛点</span>
+                <span class="ag"><b>03</b>双层架构</span>
+                <span class="ag"><b>04</b>使用方式</span>
+                <span class="ag"><b>05</b>三重成效</span>
+            </div>
+        </div>
+    </div>
+    <div class="sec-meta reveal d5">
+        <span class="m-item"><span class="dot"></span>所属部门：<b>数据管理部</b></span>
+        <span class="m-item"><span class="dot"></span>审核结构：<b>规则初审 + AI 二审</b></span>
+        <span class="m-item"><span class="dot"></span>建议时长：<b>6 min</b></span>
+    </div>
+</section>
+
+<!-- ===========================================
+     S18 场景三 · 工具3.1背景：一把"尺子"的核对
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>03</b> 工具 3.1 · 实验室范围数据集智能审核</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">工具 3.1 · 场景背景</div>
+        <h2 class="reveal d2">一把<span class="accent">"尺子"</span>的核对</h2>
+        <p class="head-note reveal d2">受试者做血常规、肝功能等实验室检查，拿到一个化验值，怎么判断正常还是异常？靠的是"实验室正常值范围"这把尺子。</p>
+    </div>
+    <div class="slide-body">
+        <div class="cards c4 reveal d3" style="height: 210px;">
+            <div class="card" style="padding: 24px 26px;"><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-bottom: 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="M10 2v6L4.5 18a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 8V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg></span><h4 style="font-size: 24px;">不同中心实验室</h4><p class="sub">各家用各家的参考范围</p></div>
+            <div class="card" style="padding: 24px 26px;"><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-bottom: 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><h4 style="font-size: 24px;">不同性别</h4><p class="sub">男女标准不一样</p></div>
+            <div class="card" style="padding: 24px 26px;"><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-bottom: 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><h4 style="font-size: 24px;">不同年龄段</h4><p class="sub">年龄区间各有一套</p></div>
+            <div class="card" style="padding: 24px 26px;"><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-bottom: 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg></span><h4 style="font-size: 24px;">随时间换版</h4><p class="sub">同一实验室也会更新版本</p></div>
+        </div>
+        <div class="two-col" style="margin-top: 26px; height: auto;">
+            <div class="card plain reveal d4" style="padding: 24px 30px;">
+                <p>这把尺子不是全国统一的一根，而是<strong>"千人千面"</strong>：一个项目下来有<strong>几百条</strong>这样的尺子，每一条都要逐条核查、配置进系统。</p>
+            </div>
+            <div class="card reveal d5" style="padding: 24px 30px; background: var(--ink); border-color: var(--ink);">
+                <p style="color:#fff; line-height: 1.75;"><strong style="color:#8fb3ff;">尺子错了，所有安全性分析跟着错</strong>——异常判成正常，可能漏掉安全风险；正常判成异常，又制造大量无效报警。</p>
+            </div>
+        </div>
+        <div class="stat-row reveal d5" style="grid-template-columns: repeat(3, 1fr); margin-top: 26px;">
+            <div class="stat" style="padding: 20px 26px;"><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-bottom: 0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></svg></span><div class="num" style="font-size: 38px;">几百<small>条</small></div><div class="lbl">一个项目累积的正常值范围"尺子"数量</div></div>
+            <div class="stat" style="padding: 20px 26px;"><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-bottom: 0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg></span><div class="num" style="font-size: 38px;">十几<small>项</small></div><div class="lbl">性别、年龄区间、时间逻辑等人工检查点</div></div>
+            <div class="stat" style="padding: 20px 26px;"><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-bottom: 0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg></span><div class="num" style="font-size: 38px;">逐条</div><div class="lbl">每条尺子都要人工逐条核查、配置进系统</div></div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景三 · 工具 3.1 · 实验室范围数据集智能审核</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S19 场景三 · 工具3.1痛点：五座大山 + 问题分布表
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>03</b> 工具 3.1 · 实验室范围数据集智能审核</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">工具 3.1 · 场景痛点</div>
+        <h2 class="reveal d2">人工逐行核对，压着<span class="accent">"五座大山"</span></h2>
+    </div>
+    <div class="slide-body tight-head">
+        <div class="reveal d3" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px;">
+            <div class="card plain" style="padding: 22px 22px;">
+                <span class="icon-chip" style="width: 42px; height: 42px; border-radius: 10px; margin-bottom: 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 23px; height: 23px;"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M12 5v13"/></svg></span>
+                <h4 style="font-size: 25px; margin-bottom: 8px;">规则多</h4>
+                <p class="sub" style="font-size: 18.5px;">性别、连续性、时间重叠等十几项检查点，全靠人脑记</p>
+            </div>
+            <div class="card plain" style="padding: 22px 22px;">
+                <span class="icon-chip" style="width: 42px; height: 42px; border-radius: 10px; margin-bottom: 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 23px; height: 23px;"><path d="m12 2 10 5-10 5L2 7l10-5Z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/></svg></span>
+                <h4 style="font-size: 25px; margin-bottom: 8px;">量大</h4>
+                <p class="sub" style="font-size: 18.5px;">几百条记录逐行比对，疲劳作业错误率就上来</p>
+            </div>
+            <div class="card plain" style="padding: 22px 22px;">
+                <span class="icon-chip" style="width: 42px; height: 42px; border-radius: 10px; margin-bottom: 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 23px; height: 23px;"><path d="M12 2v20"/><path d="M12 5h7l2.5 2.5L19 10h-7V5Z"/><path d="M12 11H5l-2.5 2.5L5 16h7v-5Z"/></svg></span>
+                <h4 style="font-size: 25px; margin-bottom: 8px;">标准散</h4>
+                <p class="sub" style="font-size: 18.5px;">范围合不合理全凭个人经验，同一数据评价因人而异</p>
+            </div>
+            <div class="card plain" style="padding: 22px 22px;">
+                <span class="icon-chip" style="width: 42px; height: 42px; border-radius: 10px; margin-bottom: 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 23px; height: 23px;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/><path d="M8 10.5h.01"/><path d="M12 10.5h.01"/><path d="M16 10.5h.01"/></svg></span>
+                <h4 style="font-size: 25px; margin-bottom: 8px;">沟通长</h4>
+                <p class="sub" style="font-size: 18.5px;">发现问题后与一线 CRA 平均往返 2.5 次以上</p>
+            </div>
+            <div class="card plain" style="padding: 22px 22px;">
+                <span class="icon-chip" style="width: 42px; height: 42px; border-radius: 10px; margin-bottom: 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 23px; height: 23px;"><path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="m5.17 11.75-1.72 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71"/><line x1="8" y1="2" x2="8" y2="5"/><line x1="2" y1="8" x2="5" y2="8"/><line x1="16" y1="19" x2="16" y2="22"/><line x1="19" y1="16" x2="22" y2="16"/></svg></span>
+                <h4 style="font-size: 25px; margin-bottom: 8px;">经验断</h4>
+                <p class="sub" style="font-size: 18.5px;">项目周期长、人员流动大，审核标准随之断层</p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 24px; margin-top: 24px; align-items: stretch;">
+            <div class="reveal d4" style="flex: 1; min-width: 0;">
+                <table class="dtable">
+                    <thead><tr><th colspan="3">表 1 · 人工核查发现的问题分布</th></tr></thead>
+                    <tbody>
+                        <tr><td>检查项缺失或名称错误</td><td class="pct">60%</td><td style="color: var(--muted); font-size: 18px;">漏报检测项、名称与标准不符</td></tr>
+                        <tr><td>重复记录</td><td class="pct">8%</td><td style="color: var(--muted); font-size: 18px;">同一条件出现完全相同的两条</td></tr>
+                        <tr><td>逻辑错误</td><td class="pct">7%</td><td style="color: var(--muted); font-size: 18px;">下限大于上限等</td></tr>
+                        <tr><td>范围和单位不合理</td><td class="pct">5%</td><td style="color: var(--muted); font-size: 18px;">超出医学常识的取值</td></tr>
+                        <tr><td>其他问题</td><td class="pct">20%</td><td style="color: var(--muted); font-size: 18px;">日期重合、年龄区间断档等</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="card reveal d5" style="width: 470px; flex-shrink: 0; justify-content: center; background: var(--blue-tint); border-color: var(--blue);">
+                <div class="no">问题分布的启示</div>
+                <p style="font-family:var(--font-latin); font-size: 58px; font-weight: 800; color: var(--blue); line-height: 1.1; margin-bottom: 10px;">60%</p>
+                <p style="font-size: 20px;">的问题集中在<strong>"检查项缺失或名称错误"</strong>——最高频的错误，恰恰最适合交给规则固化。</p>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景三 · 工具 3.1 · 实验室范围数据集智能审核</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S20 场景三 · 工具3.1架构：规则初审 + AI 二审
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>03</b> 工具 3.1 · 实验室范围数据集智能审核</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">工具 3.1 · WORKFLOW</div>
+        <h2 class="reveal d2">"规则初审 + <span class="accent">AI 二审</span>"的双层结构</h2>
+    </div>
+    <div class="slide-body">
+        <div class="two-col w58">
+            <div>
+                <div class="card plain reveal d3" style="padding: 24px 28px; margin-bottom: 20px;">
+                    <span class="icon-chip" style="margin-bottom: 14px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+                    <div class="no">第一层 · 9 道规则关卡</div>
+                    <p style="margin-bottom: 12px;">把过去靠人脑记忆的检查点<strong>固化成程序</strong>：</p>
+                    <div>
+                        <span class="pill">缺失值</span><span class="pill">单位缺失</span><span class="pill">上下限逻辑</span><span class="pill">重复记录</span><span class="pill">范围不一致</span><span class="pill">性别描述</span><span class="pill">日期逻辑</span><span class="pill">年龄区间连续性</span><span class="pill">日期重合</span>
+                    </div>
+                    <p class="sub" style="margin-top: 12px;">核心原则：同一检测项、同一实验室、同一年龄段、同一时间段、同一性别，<strong>有且只能有一套标准值</strong>。</p>
+                </div>
+                <div class="card reveal d4" style="padding: 24px 28px;">
+                    <span class="icon-chip" style="margin-bottom: 14px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8 5.8 1.9-5.8 1.9L12 18.4l-1.9-5.8-5.8-1.9 5.8-1.9L12 3Z"/><path d="M19 2v4"/><path d="M21 4h-4"/></svg></span>
+                    <div class="no">第二层 · AI 审核员</div>
+                    <p>负责规则覆盖不了的<strong>"合理性"判断</strong>——某个检测项的范围和单位在医学上到底对不对，由大模型给出判断和依据。</p>
+                    <div class="card-key" style="margin-top: 18px;">规则管"对不对得上"，AI 管"合不合理"</div>
+                </div>
+            </div>
+            <div class="img-frame reveal d4">
+                <img src="实验室正常值范围智能审核工具-04.jpeg" alt="标准化检查项范围参照表知识库">
+                <div class="cap">知识库《标准化检查项范围参照表》：名称标准化 → 单位规范化 → 范围合理性审核 → 输出审核结论</div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景三 · 工具 3.1 · 实验室范围数据集智能审核</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S21 场景三 · 工具3.1操作：四步使用 + 界面
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>03</b> 工具 3.1 · 实验室范围数据集智能审核</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">工具 3.1 · 使用方式</div>
+        <h2 class="reveal d2">使用非常简单，一共<span class="accent">四步</span></h2>
+    </div>
+    <div class="slide-body">
+        <div class="flow reveal d3" style="margin-bottom: 26px;">
+            <div class="step"><div class="s-no">1</div><h5>准备文件</h5><p>放入百奥知 4.1 标准化模板和 CRA 提交的收集表，自动识别数据范围和列名</p><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-top: 14px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span></div>
+            <div class="step"><div class="s-no">2</div><h5>运行分析</h5><p>一键跑完全部 9 大核查规则和 AI 分析</p><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-top: 14px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg></span></div>
+            <div class="step"><div class="s-no">3</div><h5>查看报告</h5><p>AI 给出每条问题的分析摘要——AI 找问题、给建议，最终拍板的还是"人"</p><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-top: 14px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg></span></div>
+            <div class="step"><div class="s-no">4</div><h5>导出结果</h5><p>一键生成三个 Sheet：标记数据、错误报告、可直接导入百奥知 4.1 的标准格式</p><span class="icon-chip" style="width: 40px; height: 40px; border-radius: 10px; margin-top: 14px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 24px; height: 372px;">
+            <div class="img-frame reveal d4">
+                <img src="实验室正常值范围智能审核工具-01.jpeg" alt="实验室正常值范围分析工具界面">
+                <div class="cap">工具界面：选择标准文件与 CRA 申请文件，点击"运行分析"</div>
+            </div>
+            <div class="img-frame reveal d5">
+                <img src="实验室正常值范围智能审核工具-03.jpeg" alt="集团内部平台上的实验室范围审核 AI 工作流">
+                <div class="cap">集团内部平台上的"实验室范围审核 AI"工作流配置</div>
+            </div>
+            <div class="img-frame reveal d6">
+                <img src="实验室正常值范围智能审核工具-02.jpeg" alt="导出的标记数据与 AI 分析结果">
+                <div class="cap">导出结果：逐行标记 + AI 分析异常原因，附行号与依据</div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景三 · 工具 3.1 · 实验室范围数据集智能审核</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S22 场景三 · 工具3.1成效
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>03</b> 工具 3.1 · 实验室范围数据集智能审核</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">工具 3.1 · 疗效成果</div>
+        <h2 class="reveal d2">效率、标准、沟通，<span class="accent">三重改善</span></h2>
+    </div>
+    <div class="slide-body">
+        <div class="cards c3" style="height: 470px;">
+            <div class="card reveal d3" style="justify-content: center;">
+                <span class="icon-chip" style="margin-bottom: 18px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+                <div class="no">成效 ① · 效率</div>
+                <p class="big-num" style="font-family:var(--font-latin); font-size: 44px; font-weight: 800; color: var(--blue); line-height: 1.15; margin-bottom: 12px;">天 → 分钟</p>
+                <p>过去几百条记录逐行核查要<strong>按天算</strong>，现在点一下按钮、<strong>按分钟计</strong>就能拿到完整报告。</p>
+            </div>
+            <div class="card reveal d4" style="justify-content: center;">
+                <span class="icon-chip" style="margin-bottom: 18px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1Z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span>
+                <div class="no">成效 ② · 标准</div>
+                <p class="big-num" style="font-family:var(--font-latin); font-size: 44px; font-weight: 800; color: var(--blue); line-height: 1.15; margin-bottom: 12px;">同一起跑线</p>
+                <p>审核标准被 AI 拉到同一起跑线，<strong>新人第一天</strong>就能按资深员工的标准干活。</p>
+            </div>
+            <div class="card reveal d5" style="justify-content: center;">
+                <span class="icon-chip" style="margin-bottom: 18px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg></span>
+                <div class="no">成效 ③ · 沟通</div>
+                <p class="big-num" style="font-family:var(--font-latin); font-size: 44px; font-weight: 800; color: var(--blue); line-height: 1.15; margin-bottom: 12px;">一次性反馈</p>
+                <p>问题一次性集中反馈、<strong>附行号和 AI 分析依据</strong>，CRA 照着改就行，来回拉扯大幅减少。</p>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景三 · 工具 3.1 · 实验室范围数据集智能审核</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S23 工具封面：工具 3.2 安全性数据集智能审核
+     =========================================== -->
+<section class="slide slide-tool">
+    <div class="grid-bg"></div>
+    <div class="slide-chrome" style="border-bottom: none; background: transparent;">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>03</b> 数据管理部 · 工具 3.2</span></div>
+    </div>
+    <div class="tool-no reveal d2">
+        <span class="t-label">TOOL</span>
+        <span class="t-num">3.2</span>
+        <span class="t-bar"></span>
+    </div>
+    <div class="tool-block">
+        <div class="sec-tag reveal d1">场景三 · 工具 3.2</div>
+        <h2 class="reveal d2">安全性数据集<br><span class="accent">智能审核</span></h2>
+        <p class="tool-sub reveal d3">检查异常 ↔ 不良事件的医学"连线题"：把需要医学知识的"匹配"交给 AI，把不需要医学知识的"核查"留在程序里，最后由人来仲裁。</p>
+        <div class="tool-agenda reveal d4">
+            <div class="ag-title">本节内容 · CONTENTS</div>
+            <div class="ag-items">
+                <span class="ag"><b>01</b>背景与痛点</span>
+                <span class="ag"><b>02</b>四层流水线</span>
+                <span class="ag"><b>03</b>大模型蒸馏</span>
+                <span class="ag"><b>04</b>下一步计划</span>
+            </div>
+        </div>
+    </div>
+    <div class="sec-meta reveal d5">
+        <span class="m-item"><span class="dot"></span>所属部门：<b>数据管理部</b></span>
+        <span class="m-item"><span class="dot"></span>核心机制：<b>AI 匹配 · 程序核查 · 人工仲裁</b></span>
+        <span class="m-item"><span class="dot"></span>建议时长：<b>6 min</b></span>
+    </div>
+</section>
+
+<!-- ===========================================
+     S24 场景三 · 工具3.2背景与痛点：医学"连线题"
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>03</b> 工具 3.2 · 安全性数据集智能审核</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">工具 3.2 · 场景背景与痛点</div>
+        <h2 class="reveal d2">一道医学<span class="accent">"连线题"</span></h2>
+        <p class="head-note reveal d2">受试者的每一次检查异常，都应该对应一条不良事件（AE）或病史记录；连对了之后，还要核对这条 AE 的开始结束日期、相关性是否合理，有没有多记、漏记。</p>
+    </div>
+    <div class="slide-body">
+        <div style="display: flex; gap: 26px; height: 430px;">
+            <div class="img-frame reveal d3" style="flex: 1.15;">
+                <img src="场景三-3.2-安全性数据集智能审核-第22页配图-业务痛点.png" alt="检查异常与不良事件 AE 的多对多连线图">
+                <div class="cap">检查异常 ↔ 不良事件（AE）：多对多的医学"连线题"</div>
+            </div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 22px; min-width: 0;">
+                <div class="card reveal d4" style="flex: 1; justify-content: center;">
+                    <span class="icon-chip" style="margin-bottom: 14px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/></svg></span>
+                    <div class="no">难点 ① · 需要医学知识</div>
+                    <p style="line-height: 1.75;">"血小板计数降低"该连到哪条 AE？<strong>不是看字面就能对的</strong>——连线本身需要医学知识。</p>
+                </div>
+                <div class="card reveal d5" style="flex: 1; justify-content: center;">
+                    <span class="icon-chip" style="margin-bottom: 14px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg></span>
+                    <div class="no">难点 ② · 量大、依赖经验</div>
+                    <p style="line-height: 1.75;">一个项目<strong>几百条异常、上百条 AE</strong>，全靠有经验的老师傅逐条比对。</p>
+                </div>
+            </div>
+        </div>
+        <div class="quote reveal d5" style="margin-top: 24px;">
+            设计思想：把需要医学知识的<em>"匹配"</em>交给 AI，把不需要医学知识的<em>"核查"</em>全部留在程序里，最后由<strong>人来仲裁</strong>。
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景三 · 工具 3.2 · 安全性数据集智能审核</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S25 场景三 · 工具3.2 Workflow：四层流水线
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>03</b> 工具 3.2 · 安全性数据集智能审核</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">工具 3.2 · WORKFLOW</div>
+        <h2 class="reveal d2">一条<span class="accent">四层流水线</span></h2>
+    </div>
+    <div class="slide-body">
+        <div class="two-col w58">
+            <div class="cards" style="grid-template-columns: 1fr; gap: 14px;">
+                <div class="card plain reveal d3" style="padding: 20px 26px; flex-direction: row; align-items: center; gap: 20px;">
+                    <span class="icon-chip" style="width: 44px; height: 44px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></span>
+                    <div>
+                        <h4 style="font-size: 23px; margin-bottom: 5px;">第一层 · 信息过滤</h4>
+                        <p class="sub">把每名受试者的全部 AE 和病史，先用日期逻辑做物理过滤——采样日期落在事件起止区间内</p>
+                    </div>
+                </div>
+                <div class="card plain reveal d4" style="padding: 20px 26px; flex-direction: row; align-items: center; gap: 20px;">
+                    <span class="icon-chip" style="width: 44px; height: 44px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span>
+                    <div>
+                        <h4 style="font-size: 23px; margin-bottom: 5px;">第二层 · AI 做连线</h4>
+                        <p class="sub">把"检查情况 + 备注 + 候选选项"发给集团内部 FastGPT 平台上的 agentic workflow，由模型判断这条异常应对应哪条 AE 或病史</p>
+                    </div>
+                </div>
+                <div class="card plain reveal d5" style="padding: 20px 26px; flex-direction: row; align-items: center; gap: 20px;">
+                    <span class="icon-chip" style="width: 44px; height: 44px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span>
+                    <div>
+                        <h4 style="font-size: 23px; margin-bottom: 5px;">第三层 · 程序做逻辑判定</h4>
+                        <p class="sub">AI 返回空 → 可能漏记 AE；AE 找不到对应异常 → 可能多记；日期对不上、AI 判断与备注引用不一致 → 自动生成质疑，附行号和依据</p>
+                    </div>
+                </div>
+                <div class="card reveal d6" style="padding: 20px 26px; flex-direction: row; align-items: center; gap: 20px;">
+                    <span class="icon-chip" style="width: 44px; height: 44px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;"><path d="m14 13-8.5 8.5a2.12 2.12 0 1 1-3-3L11 10"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg></span>
+                    <div>
+                        <h4 style="font-size: 23px; margin-bottom: 5px;">第四层 · 人工判定</h4>
+                        <p class="sub">程序生成过程文件：过程文件人工可以直接改，最终结果文件同步更新</p>
+                    </div>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-rows: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; min-height: 0;">
+                <div class="img-frame reveal d4">
+                    <img src="安全性数据集审核-程序界面.png" alt="AE_LB 核查工具程序界面">
+                    <div class="cap">AE_LB 核查工具：选择 EDC 数据文件与日期范围，一键运行</div>
+                </div>
+                <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; min-height: 0;">
+                    <div class="img-frame reveal d5">
+                        <img src="安全性数据集审核-fastgpt 配置.png" alt="FastGPT 平台工作流配置">
+                        <div class="cap">内部 FastGPT 平台上的 LB 对应 AE 工作流</div>
+                    </div>
+                    <div class="img-frame reveal d6">
+                        <img src="安全性数据集审核-工作过程.png" alt="AI 连线工作过程日志">
+                        <div class="cap">AI 连线工作过程：检查情况 → 候选 AE / 病史</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景三 · 工具 3.2 · 安全性数据集智能审核</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S26 场景三 · 工具3.2亮点：大模型蒸馏 + 下一步
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>03</b> 工具 3.2 · 安全性数据集智能审核</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">工具 3.2 · 工具亮点与下一步</div>
+        <h2 class="reveal d2">"大模型蒸馏"：<span class="accent">老师带学生</span></h2>
+    </div>
+    <div class="slide-body">
+        <div style="display: flex; gap: 26px; height: 396px;">
+            <div class="img-frame reveal d3" style="flex: 1;">
+                <img src="场景三-3.2-安全性数据集智能审核-第24页配图-工具亮点.png" alt="大模型蒸馏：老师学生闭环迭代图">
+                <div class="cap">"大模型蒸馏"闭环：老师沉淀知识库 → 学生跑测比对 → 差异补强 → 正确率不断逼近</div>
+            </div>
+            <div class="vsteps reveal d4" style="flex: 1;">
+                <div class="vstep"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg></span><div class="vstep-t"><h5><span class="n">师</span>顶级模型当"老师"</h5><p>先让 GPT-5.6 分析数据集、给出高质量答案，并把判断经验沉淀提炼为知识库</p></div></div>
+                <div class="vstep"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v2"/><path d="M15 2v2"/><path d="M9 20v2"/><path d="M15 20v2"/><path d="M2 9h2"/><path d="M2 15h2"/><path d="M20 9h2"/><path d="M20 15h2"/></svg></span><div class="vstep-t"><h5><span class="n">生</span>内部平台当"学生"</h5><p>内部算力平台上的工作流跑同样的数据，输出自己的答案</p></div></div>
+                <div class="vstep"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg></span><div class="vstep-t"><h5><span class="n">比</span>比对差异、补强知识库</h5><p>比对"师生"两份答案的差异，老师把差异整理成新的知识点</p></div></div>
+                <div class="vstep"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><div class="vstep-t"><h5><span class="n">进</span>反复几轮</h5><p>学生的正确率不断逼近老师</p></div></div>
+            </div>
+        </div>
+        <div class="two-col" style="height: auto; margin-top: 24px;">
+            <div class="card reveal d4" style="padding: 24px 30px; background: var(--ink); border-color: var(--ink);">
+                <p style="color:#fff; line-height: 1.75;">用我们自己的算力平台，<strong style="color:#8fb3ff;">花更少的钱、用更快的速度</strong>，做出这个场景下接近顶级模型的准确率——而且<strong style="color:#8fb3ff;">数据全程不出内网</strong>。</p>
+            </div>
+            <div class="card plain reveal d5" style="padding: 24px 30px;">
+                <div class="no">下一步计划</div>
+                <ul class="blist dense">
+                    <li>继续用蒸馏思路打磨，以先行项目把正确率调到稳定</li>
+                    <li>封装成 EXE、附完整使用说明发给部门成员，点击即可使用</li>
+                    <li>把"规则引擎 + AI 审核 + 人机协同"范式扩展到更多团队的核查场景，让更多重复、规则化、依赖经验的审核工作交给 AI 跑第一棒</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景三 · 工具 3.2 · 安全性数据集智能审核</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S27 章节页：场景四 方案变更说明智能生成
+     =========================================== -->
+<section class="slide slide-section">
+    <div class="grid-bg"></div>
+    <div class="slide-chrome" style="border-bottom: none; background: transparent;">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>04</b> 医学部</span></div>
+    </div>
+    <div class="sec-no">04</div>
+    <div class="sec-block">
+        <div class="sec-tag reveal d1">场景四 · 医学部</div>
+        <h2 class="reveal d2">临床方案变更说明<br><span class="accent">文件智能生成</span></h2>
+        <p class="sec-sub reveal d3">不是把两份 Word 交给 AI 写一段摘要，而是把"方案比对、证据核对、医学判断、变更说明成稿"串成一套完整、可交互、可追溯的工作流程。</p>
+    </div>
+    <div class="sec-meta reveal d4">
+        <span class="m-item"><span class="dot"></span>形态：<b>智能体 + 本地审阅界面 + Word 成稿</b></span>
+        <span class="m-item"><span class="dot"></span>建议时长：<b>6 min</b></span>
+        <div class="sec-progress"><i></i><i></i><i></i><i class="on"></i><i></i></div>
+    </div>
+</section>
+
+<!-- ===========================================
+     S28 场景四 · 业务背景：方案 = 总设计图
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>04</b> 方案变更说明智能生成</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">先从业务讲起 · CONTEXT</div>
+        <h2 class="reveal d2">每次方案修订，都是一次<span class="accent">医学影响评估</span></h2>
+    </div>
+    <div class="slide-body tight-head">
+        <div class="two-col w58">
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+                <ul class="blist iconed reveal d3">
+                    <li><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/></svg></span><span class="li-t"><span class="li-h">方案＝整个试验的"总设计图"</span><span class="li-p">规定哪些患者可以参加、接受什么治疗、何时进行检查、如何评价疗效，以及出现什么情况需要停药或加强安全监测。</span></span></li>
+                    <li><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg></span><span class="li-t"><span class="li-h">医学部的重要职责</span><span class="li-p">把<strong>产品策略和科学假设</strong>转化为可执行的临床研究设计，并持续判断方案是否科学、是否有利于患者、是否带来新的安全风险。</span></span></li>
+                    <li><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg></span><span class="li-t"><span class="li-h">执行过程中经常需要修订</span><span class="li-p">原因可能来自<strong>监管反馈、新的安全性信息、执行可行性问题或研发策略调整</strong>。</span></span></li>
+                </ul>
+            </div>
+            <div>
+                <div class="card reveal d4" style="height: 100%; justify-content: center; background: var(--ink); border-color: var(--ink);">
+                    <div class="no" style="color:#7ea4f7;">修订之后，医学人员要回答</div>
+                    <div class="qlist">
+                        <div class="q"><span class="q-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="3"/><path d="M12 6h5a2 2 0 0 1 2 2v7"/><path d="m15 9-3-3 3-3"/><circle cx="19" cy="18" r="3"/><path d="M12 18H7a2 2 0 0 1-2-2V9"/><path d="m9 15 3 3-3 3"/></svg></span><span>① 文字变了什么</span></div>
+                        <div class="q"><span class="q-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span><span>② <strong>为什么</strong>修改</span></div>
+                        <div class="q"><span class="q-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></span><span>③ 是否属于<strong>实质性变更</strong></span></div>
+                        <div class="q"><span class="q-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span><span>④ 是否可能<strong>显著增加受试者安全风险</strong></span></div>
+                    </div>
+                    <p style="color:#9fb4d8; font-size: 18px; margin-top: 20px;">所以，这不是简单的文档工作，而是一次医学影响评估。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景四 · 方案变更说明智能生成</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S29 场景四 · 场景痛点：五个"要"
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>04</b> 方案变更说明智能生成</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">场景痛点 · PAIN POINTS</div>
+        <h2 class="reveal d2">这件事难在<span class="accent">五个"要"</span></h2>
+    </div>
+    <div class="slide-body tight-head" style="display: flex; flex-direction: column;">
+        <div class="hub reveal d3" style="flex: 1; min-height: 0;">
+            <div class="hub-col hub-col-l">
+                <div class="card plain hub-card">
+                    <div class="hc-head"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.5"/><path d="m16.5 16.5 2 2"/></svg></span><h4>① 要找全</h4></div>
+                    <p>一份方案往往<strong>上百页</strong>，变化可能出现在正文、表格、脚注或访视安排中。漏掉一个关键条件，就可能影响入组人群、给药管理甚至受试者安全。</p>
+                </div>
+                <div class="card plain hub-card">
+                    <div class="hc-head"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg></span><h4>② 要分清</h4></div>
+                    <p>整页变化可能只是<strong>编号或排版调整</strong>，而一个词的变化却可能改变医学含义。传统文档比对容易产生大量噪声。</p>
+                </div>
+            </div>
+            <div class="hub-core">
+                <div class="hub-disc-wrap">
+                    <div class="hub-ring"></div>
+                    <div class="hub-disc">
+                        <div class="hub-num">5</div>
+                        <div class="hub-cap">个"要"</div>
+                        <div class="hub-sub">硬骨头挑战</div>
+                    </div>
+                </div>
+            </div>
+            <div class="hub-col hub-col-r">
+                <div class="card plain hub-card">
+                    <div class="hc-head"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg></span><h4>③ 要讲明白</h4></div>
+                    <p>发现差异后，还要逐条理解上下文、填写原因并判断风险，<strong>重复劳动多</strong>，结果也容易受个人经验和表达习惯影响。</p>
+                </div>
+                <div class="card plain hub-card">
+                    <div class="hc-head"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg></span><h4>④ 要可追溯</h4></div>
+                    <p>人工复制粘贴后，经常难以回答<strong>某条结论来自哪里、为什么这样判断、是否遗漏上下文</strong>。</p>
+                </div>
+                <div class="card plain hub-card">
+                    <div class="hc-head"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg></span><h4>⑤ 时间压力</h4></div>
+                    <p>方案修订通常伴随着<strong>伦理、注册和中心执行</strong>等后续任务，留给医学人员的时间非常有限。</p>
+                </div>
+            </div>
+        </div>
+        <div class="hub-concl reveal d4" style="margin-top: 22px;">
+            <span class="con-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg></span>
+            <span>五个"要"叠加在一起，正是 <strong>AI + 工作流程</strong> 的用武之地。</span>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景四 · 方案变更说明智能生成</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S30 场景四 · 工具 Workflow：找全 → 讲清 → 成稿
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>04</b> 方案变更说明智能生成</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">工具 WORKFLOW</div>
+        <h2 class="reveal d2">先找全，再讲清，最后由人<span class="accent">确认并固化成稿</span></h2>
+    </div>
+    <div class="slide-body tight-head">
+        <div class="two-col w58">
+            <div class="pipe reveal d3">
+                <div class="pipe-step">
+                    <div class="pipe-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-3a2 2 0 0 1-2-2V2"/><path d="M9 18a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h5l4 4v10a2 2 0 0 1-2 2Z"/><path d="M3 7.6v12.8A1.6 1.6 0 0 0 4.6 22h9.8"/></svg></div>
+                    <div class="pipe-t"><h5><span class="n">01</span>输入</h5><p>旧版方案、新版方案和公司的变更说明模板（已内嵌一版）</p></div>
+                </div>
+                <div class="pipe-step">
+                    <div class="pipe-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.5"/><path d="m16.5 16.5 2 2"/></svg></div>
+                    <div class="pipe-t"><h5><span class="n">02</span>先找全</h5><p>读取文档结构，判断内容的新增、删除、修改、移动、拆分和合并六类变更操作</p></div>
+                </div>
+                <div class="pipe-step">
+                    <div class="pipe-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8h10"/><path d="M7 12h6"/><circle cx="16" cy="16" r="2.5"/><path d="m18 18 2.5 2.5"/></svg></div>
+                    <div class="pipe-t"><h5><span class="n">03</span>再讲清</h5><p>变化整理成一张张证据卡片进入本地审阅界面，每张卡片保留变更前后内容、所在章节和来源位置；AI 提供变更原因、实质性判断和安全风险判断的初步建议</p></div>
+                </div>
+                <div class="pipe-step">
+                    <div class="pipe-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg></div>
+                    <div class="pipe-t"><h5><span class="n">04</span>人确认</h5><p>AI 只是"起草助手"——最终是否采纳、如何修改，仍由医学人员决定</p></div>
+                </div>
+                <div class="pipe-step final">
+                    <div class="pipe-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M19 22v-3a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3"/><path d="M14 15V9c1.5-1 2.5-2.6 2.5-4.5A3.5 3.5 0 0 0 13 1h-2a3.5 3.5 0 0 0-3.5 3.5C7.5 6.4 8.5 8 10 9v6"/></svg></div>
+                    <div class="pipe-t"><h5><span class="n">05</span>固化成稿</h5><p>审阅完成后系统冻结当时的结果，按既定模板生成 Word 工作草稿，并提供预览和下载</p></div>
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; min-height: 0;">
+                <div class="img-frame reveal d4" style="flex: 1; min-height: 0;">
+                    <img src="assets/agent-ui_processed.jpg" alt="智能体与本地审阅界面">
+                    <div class="cap">智能体（左）+ 本地审阅界面（右）：候选差异逐条判定，证据卡片保留来源位置</div>
+                </div>
+                <p class="reveal d5" style="margin-top: 16px; font-size: 18px; color: var(--muted); line-height: 1.7;">形成了<strong>从文件输入到正式文档输出的完整闭环</strong>，而不只是一个比对算法或聊天界面。</p>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景四 · 方案变更说明智能生成</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S31 场景四 · 审阅界面亮点 + 迭代思路
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>04</b> 方案变更说明智能生成</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">审阅升级 · HTML 视觉友好界面</div>
+        <h2 class="reveal d2">同一页面审阅两份文件，<span class="accent">可交互、可追溯</span></h2>
+    </div>
+    <div class="slide-body tight-head">
+        <div class="two-col w58">
+            <div style="display: flex; flex-direction: column; min-height: 0;">
+                <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 1fr); gap: 14px;" class="reveal d3">
+                    <div class="card plain feat"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><div class="feat-t"><b>高效</b><span>同一页面审阅两份文件</span></div></div>
+                    <div class="card plain feat"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg></span><div class="feat-t"><b>清晰</b><span>分章分条目，便捷定位</span></div></div>
+                    <div class="card plain feat"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg></span><div class="feat-t"><b>稍后再办</b><span>待定条目可标记</span></div></div>
+                    <div class="card plain feat"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg></span><div class="feat-t"><b>智能</b><span>结合上下文推荐变更原因</span></div></div>
+                    <div class="card plain feat"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><div class="feat-t"><b>兜底</b><span>可重新配对、拆分、合并、手工补充</span></div></div>
+                    <div class="card plain feat"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span><div class="feat-t"><b>完整</b><span>前后端打包进技能包，本地缓存下次继续</span></div></div>
+                </div>
+                <div class="reveal d4" style="margin-top: 22px; display: flex; align-items: center; gap: 20px;">
+                    <a class="demo-btn" href="临床方案变更说明文件智能生成static-demo/临床方案修订审阅-静态演示.html" target="_blank" rel="noopener">打开本地静态演示 <span class="arrow">↗</span></a>
+                    <span class="demo-note">删条目、搜索筛选等更多功能<br>均已在演示中可用</span>
+                </div>
+            </div>
+            <div class="card reveal d4" style="justify-content: center;">
+                <div class="no">下一步迭代思路</div>
+                <ul class="blist iconed">
+                    <li><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/></svg></span><span class="li-t"><span class="li-h">建立更明确的医学规则</span><span class="li-p">如何处理未接受的修订痕迹、哪些轻微变化可以不纳入，以及实质性变更和安全风险的统一判断口径</span></span></li>
+                    <li><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg></span><span class="li-t"><span class="li-h">历史方案双轨验证</span><span class="li-p">重点观察关键变化遗漏情况、无效差异数量、审阅时间、AI 建议采纳率和人工修改量，用真实数据评价价值</span></span></li>
+                    <li><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg></span><span class="li-t"><span class="li-h">探索联动修订</span><span class="li-p">待本技能稳定后，探索相关文件联动修订的实现路径</span></span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">场景四 · 方案变更说明智能生成</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S32 章节页：总结反思
+     =========================================== -->
+<section class="slide slide-section">
+    <div class="grid-bg"></div>
+    <div class="slide-chrome" style="border-bottom: none; background: transparent;">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>05</b> 总结反思</span></div>
+    </div>
+    <div class="sec-no">05</div>
+    <div class="sec-block">
+        <div class="sec-tag reveal d1">总结反思 · 思考与展望</div>
+        <h2 class="reveal d2">三点思考，<br><span class="accent">一张蓝图</span></h2>
+        <p class="sec-sub reveal d3">五个场景落地之后：三点思考——关于尝鲜的人、关于工具的更多可能性、关于人与 AI 的分工；再以一张全景蓝图，对齐《数智化五年发展规划》的愿景。</p>
+    </div>
+    <div class="sec-meta reveal d4">
+        <span class="m-item"><span class="dot"></span>内容：<b>三点思考 + 全景蓝图</b></span>
+        <span class="m-item"><span class="dot"></span>建议时长：<b>3 min</b></span>
+        <div class="sec-progress"><i></i><i></i><i></i><i></i><i class="on"></i></div>
+    </div>
+</section>
+
+<!-- ===========================================
+     S33 总结反思：三点思考
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>05</b> 总结反思</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">总结反思 · TAKEAWAYS</div>
+        <h2 class="reveal d2">三点<span class="accent">思考</span></h2>
+    </div>
+    <div class="slide-body tight-head">
+        <div class="cards c3" style="height: 100%;">
+            <div class="card reveal d3" style="justify-content: center;">
+                <span class="icon-chip" style="margin-bottom: 18px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span>
+                <div class="no">思考 ①</div>
+                <h4>星星之火</h4>
+                <p>它适合<strong>善于思考、敢于尝鲜</strong>的人，能让人以更低的门槛，开发适合个人及团队的小工具。</p>
+                <p class="sub" style="margin-top: 12px;">希望更多人迎着这次"办公平台的升级"及"数字员工的引入"，挖掘更多有价值的、更有趣的场景。</p>
+            </div>
+            <div class="card reveal d4" style="justify-content: center;">
+                <span class="icon-chip" style="margin-bottom: 18px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></span>
+                <div class="no">思考 ②</div>
+                <h4>更多的可能性</h4>
+                <p>自己开发的工具或技能，具备发展成<strong>团队工具、甚至系统级产品</strong>的潜力。</p>
+                <p class="sub" style="margin-top: 12px;">我们会以《数智化五年发展规划》为参考，从众多技能或工具中汲取灵感，追赶规划中提出的愿景。</p>
+            </div>
+            <div class="card reveal d5" style="background: var(--blue); border-color: var(--blue); justify-content: center;">
+                <span class="icon-chip inv" style="margin-bottom: 18px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20a6 6 0 0 0-12 0"/><circle cx="12" cy="10" r="4"/><circle cx="12" cy="12" r="10"/></svg></span>
+                <div class="no" style="color:#cfe0ff;">思考 ③</div>
+                <h4 style="color:#fff;">Human in the Loop</h4>
+                <p style="color:#e6efff;">AI 不是替代人的工具，而是<strong style="color:#fff;">接住流程中最耗时、最容易出错环节</strong>的助手。</p>
+                <p style="color:#fff; margin-top: 12px; font-size: 22px; font-weight: 700;">人，始终是最终的价值判断者。</p>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">总结反思</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S34 数智化全景架构蓝图
+     =========================================== -->
+<section class="slide ch1">
+    <div class="slide-chrome">
+        <div class="brand"><span class="brand-mark">AI</span><span>临床研发中心 · 个人 AI 应用场景分享</span></div>
+        <div class="chrome-right"><span class="crumb"><b>05</b> 总结反思</span></div>
+    </div>
+    <div class="slide-head">
+        <div class="eyebrow reveal d1">展望 · VISION</div>
+        <h2 class="reveal d2">对齐《数智化五年发展规划》的<span class="accent">全景蓝图</span></h2>
+    </div>
+    <div class="slide-body" style="top: 262px;">
+        <div class="two-col" style="grid-template-columns: 1.55fr 1fr;">
+            <div class="img-frame reveal d3">
+                <img src="assets/blueprint_processed.jpg" alt="临床研发中心数智化全景架构蓝图">
+                <div class="cap">临床研发中心数智化全景架构蓝图（L1 硬件基础设施 → L5 统一门户与交互）</div>
+            </div>
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+                <ul class="blist iconed reveal d4" style="margin-bottom: 24px;">
+                    <li><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/></svg></span><span class="li-t">今天分享的五个小工具，正是蓝图中 <strong>L4 智慧赋能层</strong> 的真实萌芽。</span></li>
+                    <li><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg></span><span class="li-t">从个人工具到团队工具，再到系统级产品——<strong>从众多技能与工具中汲取灵感</strong>，追赶规划中的愿景。</span></li>
+                    <li><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="li-t">统一门户、AI 智能体系统、多智能体协同平台，都期待更多一线同事的场景加入。</span></li>
+                </ul>
+                <div class="quote reveal d5">以小见大：每一个"小工具"，都可能是未来系统级产品的<strong>种子</strong>。</div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-foot"><span class="foot-cn">总结反思</span><span class="page"></span></div>
+</section>
+
+<!-- ===========================================
+     S35 结束页
+     =========================================== -->
+<section class="slide slide-title">
+    <div class="grid-bg"></div>
+    <div class="slide-chrome" style="border-bottom: none; background: transparent;">
+        <div class="brand reveal d1"><span class="brand-mark">AI</span><span>临床研发中心 · 数智化组</span></div>
+        <div class="chrome-right reveal d1">2026 · 09</div>
+    </div>
+    <div class="side-index reveal d2">AI</div>
+    <div style="position: absolute; left: 88px; top: 300px; width: 1400px; z-index: 3;">
+        <div class="eyebrow reveal d2">谢谢聆听 · THANKS</div>
+        <h1 class="reveal d3" style="font-size: 88px; line-height: 1.22; font-weight: 900;">让 AI 跑<span style="color: var(--blue);">第一棒</span>，<br>让人做<span style="color: var(--blue);">最终判断</span></h1>
+        <p class="reveal d4" style="margin-top: 34px; font-size: 25px; line-height: 1.7; color: var(--muted);">以上五个场景均已落地可用，欢迎各部门同事交流、试用、提出新场景。</p>
+    </div>
+    <div class="reveal d5" style="position: absolute; left: 88px; right: 88px; bottom: 78px; display: flex; align-items: center; gap: 40px; padding-top: 28px; border-top: 1px solid var(--hairline); font-size: 17px; color: var(--muted); z-index: 3;">
+        <span style="display:flex;align-items:center;gap:10px;"><i style="width:8px;height:8px;border-radius:50%;background:var(--blue-bright);"></i>运营管理部 · 药物安全部 · 数据管理部 · 医学部</span>
+        <span style="flex:1;"></span>
+        <span style="font-family:var(--font-latin); font-weight:700; letter-spacing:0.12em;">恳请各位领导批评指正</span>
+    </div>
+</section>
+
+</main>
+</div>
+
+<!-- 内联编辑 UI -->
+<div class="edit-hotzone" title="编辑模式（E）"></div>
+<button class="edit-toggle" id="editToggle" title="编辑模式（E）">✏️</button>
+<div class="edit-banner">编辑模式：点击任意文字直接修改 · Ctrl+S 导出保存 · 再按 E 退出</div>
+
+<!-- 演示控制条（舞台外，悬停显示） -->
+<div class="deck-controls">
+    <span id="slideCounter">01 / 35</span>
+    <div class="deck-progress"><i id="progressBar"></i></div>
+    <span>← → 翻页 · E 编辑</span>
+</div>
+
+<!-- 图片放大浮窗（点击幻灯片中的图片放大；点空白处 / Esc / × 关闭） -->
+<div class="lb-overlay" id="imgLightbox" aria-hidden="true">
+    <div class="lb-card">
+        <img id="lbImg" alt="">
+        <div class="lb-cap" id="lbCap"></div>
+    </div>
+    <button class="lb-close" id="lbClose" title="关闭（Esc）">×</button>
+</div>
+
+<script>
+/* ===========================================
+   幻灯片控制器：缩放舞台 + 键盘/触摸/滚轮翻页
+   =========================================== */
+class SlidePresentation {
+    constructor() {
+        this.slides = document.querySelectorAll('.slide');
+        this.total = this.slides.length;
+        this.stage = document.getElementById('deckStage');
+        this.counter = document.getElementById('slideCounter');
+        this.progress = document.getElementById('progressBar');
+        this.wheelLock = false;
+        // 支持 ?slide=N 或 #N 直接定位（便于分享与检查）
+        const q = new URLSearchParams(location.search).get('slide');
+        const h = parseInt((location.hash || '').replace('#', ''), 10);
+        this.currentSlide = Math.max(0, Math.min((q ? parseInt(q, 10) - 1 : (h ? h - 1 : 0)) || 0, this.total - 1));
+        this.setupStageScale();
+        this.setupKeyboardNav();
+        this.setupTouchNav();
+        this.setupWheelNav();
+        this.showSlide(this.currentSlide);
+    }
+    setupStageScale() {
+        const scale = () => {
+            const factor = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+            const x = (window.innerWidth - 1920 * factor) / 2;
+            const y = (window.innerHeight - 1080 * factor) / 2;
+            this.stage.style.transform = `translate(${x}px, ${y}px) scale(${factor})`;
+        };
+        scale();
+        window.addEventListener('resize', scale);
+    }
+    setupKeyboardNav() {
+        document.addEventListener('keydown', (e) => {
+            if (window.__lbOpen) return; // 图片浮窗打开时不翻页
+            if (e.target.getAttribute('contenteditable') === 'true') return; // 编辑文字时不翻页
+            if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); this.next(); }
+            else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); this.prev(); }
+            else if (e.key === 'Home') { e.preventDefault(); this.showSlide(0); }
+            else if (e.key === 'End') { e.preventDefault(); this.showSlide(this.total - 1); }
+        });
+    }
+    setupTouchNav() {
+        let sx = 0, sy = 0;
+        document.addEventListener('touchstart', (e) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            if (window.__lbOpen) return; // 图片浮窗打开时不翻页
+            const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) { dx < 0 ? this.next() : this.prev(); }
+        }, { passive: true });
+    }
+    setupWheelNav() {
+        document.addEventListener('wheel', (e) => {
+            if (window.__lbOpen) return; // 图片浮窗打开时不翻页
+            if (this.wheelLock || Math.abs(e.deltaY) < 24) return;
+            this.wheelLock = true;
+            e.deltaY > 0 ? this.next() : this.prev();
+            setTimeout(() => { this.wheelLock = false; }, 650);
+        }, { passive: true });
+    }
+    next() { this.showSlide(this.currentSlide + 1); }
+    prev() { this.showSlide(this.currentSlide - 1); }
+    showSlide(index) {
+        this.currentSlide = Math.max(0, Math.min(index, this.total - 1));
+        this.slides.forEach((slide, i) => {
+            const on = i === this.currentSlide;
+            slide.classList.toggle('active', on);
+            slide.classList.toggle('visible', on);
+        });
+        const n = String(this.currentSlide + 1).padStart(2, '0');
+        this.counter.textContent = `${n} / ${this.total}`;
+        this.progress.style.width = `${((this.currentSlide + 1) / this.total) * 100}%`;
+        history.replaceState(null, '', `#${this.currentSlide + 1}`);
+    }
+}
+const deck = new SlidePresentation();
+
+/* ===========================================
+   内联编辑器：E 键开关 / 热区悬停 / localStorage 自动保存 / Ctrl+S 导出
+   =========================================== */
+class InlineEditor {
+    constructor() {
+        this.isActive = false;
+        this.storageKey = 'deck-edits:' + location.pathname.split('/').pop();
+        this.restoreEdits();
+    }
+    editableNodes() {
+        return document.querySelectorAll('.slide h1, .slide h2, .slide h4, .slide h5, .slide p, .slide li, .slide td, .slide th, .slide .cap, .slide .sec-sub, .slide .head-note, .slide .m-item, .slide .pill');
+    }
+    toggleEditMode() {
+        this.isActive = !this.isActive;
+        document.body.classList.toggle('editing', this.isActive);
+        document.getElementById('editToggle').classList.toggle('active', this.isActive);
+        this.editableNodes().forEach(el => el.setAttribute('contenteditable', this.isActive ? 'true' : 'false'));
+        if (!this.isActive) this.saveEdits();
+    }
+    saveEdits() {
+        const data = [];
+        this.editableNodes().forEach((el, i) => data.push([i, el.innerHTML]));
+        try { localStorage.setItem(this.storageKey, JSON.stringify(data)); } catch (e) {}
+    }
+    restoreEdits() {
+        try {
+            const raw = localStorage.getItem(this.storageKey);
+            if (!raw) return;
+            const nodes = this.editableNodes();
+            JSON.parse(raw).forEach(([i, html]) => { if (nodes[i]) nodes[i].innerHTML = html; });
+        } catch (e) {}
+    }
+    exportFile() {
+        const wasActive = this.isActive;
+        if (wasActive) this.toggleEditMode();
+        this.saveEdits();
+        const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = '临床研发中心-个人AI应用场景分享.html';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+}
+const editor = new InlineEditor();
+
+// 1. 编辑按钮点击
+document.getElementById('editToggle').addEventListener('click', () => editor.toggleEditMode());
+
+// 2. 热区悬停（400ms 宽限，避免按钮闪现消失）
+const hotzone = document.querySelector('.edit-hotzone');
+const editToggle = document.getElementById('editToggle');
+let hideTimeout = null;
+hotzone.addEventListener('mouseenter', () => { clearTimeout(hideTimeout); editToggle.classList.add('show'); });
+hotzone.addEventListener('mouseleave', () => { hideTimeout = setTimeout(() => { if (!editor.isActive) editToggle.classList.remove('show'); }, 400); });
+editToggle.addEventListener('mouseenter', () => clearTimeout(hideTimeout));
+editToggle.addEventListener('mouseleave', () => { hideTimeout = setTimeout(() => { if (!editor.isActive) editToggle.classList.remove('show'); }, 400); });
+hotzone.addEventListener('click', () => editor.toggleEditMode());
+
+// 3. 快捷键：E 切换编辑；Ctrl/Cmd+S 导出
+document.addEventListener('keydown', (e) => {
+    if ((e.key === 'e' || e.key === 'E') && !e.target.getAttribute('contenteditable')) { e.preventDefault(); editor.toggleEditMode(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); editor.exportFile(); }
+});
+
+/* ===========================================
+   图片放大浮窗（Lightbox）
+   点击幻灯片中的图片 → 浮窗卡片放大 + 背景模糊；
+   点空白处 / Esc / × 关闭；打开期间锁定翻页（__lbOpen）
+   =========================================== */
+(function () {
+    const overlay = document.getElementById('imgLightbox');
+    const lbImg = document.getElementById('lbImg');
+    const lbCap = document.getElementById('lbCap');
+    let isOpen = false;
+    window.__lbOpen = false;
+
+    function open(img) {
+        lbImg.src = img.currentSrc || img.src;
+        lbImg.alt = img.alt || '';
+        // 图注：优先取同框架 .cap 文本，其次 alt；都没有则隐藏图注条
+        const frame = img.closest('.img-frame');
+        const capEl = frame ? frame.querySelector('.cap') : null;
+        const capText = (capEl ? capEl.textContent : (img.alt || '')).trim();
+        lbCap.textContent = capText;
+        lbCap.style.display = capText ? '' : 'none';
+        overlay.classList.add('open');
+        overlay.setAttribute('aria-hidden', 'false');
+        isOpen = window.__lbOpen = true;
+    }
+    function close() {
+        overlay.classList.remove('open');
+        overlay.setAttribute('aria-hidden', 'true');
+        isOpen = window.__lbOpen = false;
+    }
+
+    // 为所有幻灯片内容图片挂上点击放大
+    document.querySelectorAll('.slide img').forEach((img) => {
+        img.classList.add('zoomable');
+        img.addEventListener('click', (e) => {
+            if (document.body.classList.contains('editing')) return; // 编辑模式下不触发放大
+            e.stopPropagation();
+            open(img);
+        });
+    });
+    // 点空白处（遮罩）关闭；点卡片本身不关闭
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    document.getElementById('lbClose').addEventListener('click', (e) => { e.stopPropagation(); close(); });
+    // Esc 关闭（捕获阶段，先于其他键盘处理）
+    document.addEventListener('keydown', (e) => {
+        if (isOpen && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+    }, true);
+})();
+</script>
+</body>
+</html>
